@@ -71,8 +71,38 @@ export default function Popup() {
     }
   };
 
-    const manualSelect = () => {
-    chrome.runtime.sendMessage({ action: 'manualSelect' });
+    const manualSelect = async () => {
+    setLoading(true);
+    setActiveAction('manualSelect');
+    setOutput('');
+
+    try {
+      await chrome.runtime.sendMessage({ action: 'startManualSelection' });
+      setOutput('Manual selection mode activated. Click on any element on the page to extract its content.');
+
+      const messageListener = (message: any) => {
+        if (message.action === 'manualSelectionComplete') {
+          setJobText(message.text);
+          const extractedKeywords = extractKeywords(message.text, customKeywords);
+          setKeywords(extractedKeywords);
+          setOutput(`Job posting extracted via manual selection!\n\nPreview:\n${message.text.slice(0, 500)}...`);
+          setLoading(false);
+          setActiveAction('');
+          chrome.runtime.onMessage.removeListener(messageListener);
+        } else if (message.action === 'selectionCancelled') {
+          setOutput('Manual selection cancelled.');
+          setLoading(false);
+          setActiveAction('');
+          chrome.runtime.onMessage.removeListener(messageListener);
+        }
+      };
+
+      chrome.runtime.onMessage.addListener(messageListener);
+    } catch (error) {
+      setOutput('Error: Could not start manual selection mode.');
+      setLoading(false);
+      setActiveAction('');
+    }
   };
     
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {

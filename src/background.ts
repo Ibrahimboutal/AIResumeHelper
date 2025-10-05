@@ -22,6 +22,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
     });
     return true;
+  } else if (request.action === 'startManualSelection') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'startManualSelection' }, (response) => {
+          sendResponse(response);
+        });
+      }
+    });
+    return true;
+  } else if (request.action === 'manualSelectionComplete') {
+    chrome.runtime.sendMessage({
+      action: 'manualSelectionComplete',
+      text: request.text
+    });
+  } else if (request.action === 'selectionCancelled') {
+    chrome.runtime.sendMessage({
+      action: 'selectionCancelled'
+    });
   }
 });
 
