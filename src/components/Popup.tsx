@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Save, Briefcase, MousePointerClick,
-  LayoutGrid, Library, Settings
+  LayoutGrid, Library, Settings, PartyPopper
 } from 'lucide-react';
 import { summarizeJob, tailorResume, generateCoverLetter } from '../utils/aiMocks';
 import { extractKeywords, type Keyword } from '../utils/keywordExtractor';
@@ -27,6 +27,7 @@ export default function Popup() {
 
   useEffect(() => {
     // Listen for storage changes to keep custom keywords in sync
+   if (chrome && chrome.storage && chrome.storage.sync) {
     const listener = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
       if (areaName === 'sync' && changes.customKeywords) {
         setCustomKeywords(changes.customKeywords.newValue || []);
@@ -43,6 +44,7 @@ export default function Popup() {
 
     return () => {
       chrome.storage.onChanged.removeListener(listener);
+    }
     }
   }, []);
 
@@ -249,6 +251,35 @@ export default function Popup() {
       {label}
     </button>
   );
+  const renderEmptyState = () => {
+    if (!jobText) {
+      return (
+        <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-slate-200">
+          <h3 className="text-lg font-semibold text-slate-800">Welcome to Smart Resume Assistant!</h3>
+          <p className="text-slate-500 mt-2 mb-4">Start by extracting a job posting from your current page.</p>
+          <button onClick={extractJobPosting} disabled={loading} className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed">
+            {loading && activeAction === 'extract' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+            Extract Job Posting
+          </button>
+        </div>
+      );
+    }
+    if (!resumeText) {
+      return (
+        <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-slate-200">
+          <PartyPopper className="w-10 h-10 mx-auto text-emerald-500" />
+          <h3 className="text-lg font-semibold text-slate-800 mt-2">Job Posting Loaded!</h3>
+          <p className="text-slate-500 mt-2 mb-4">Now, upload your resume to see your match score and unlock AI actions.</p>
+          <label htmlFor="resume-upload" className="inline-flex items-center justify-center gap-2 bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl cursor-pointer">
+            <FileText className="w-5 h-5" />
+            Upload Your Resume
+          </label>
+           <input type="file" accept=".pdf,.docx,.txt" onChange={handleFileUpload} className="hidden" id="resume-upload" disabled={loading} />
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="w-[800px] h-[700px] bg-slate-50 flex flex-col">
@@ -272,7 +303,10 @@ export default function Popup() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {activeTab === 'analysis' && (
+          renderEmptyState() ? renderEmptyState() : (
           <>
+          
+          
             {/* Step 1: Inputs */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
               <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">1. Inputs</h2>
@@ -349,6 +383,7 @@ export default function Popup() {
               )}
             </div>
           </>
+          )
         )}
 
         {activeTab === 'data' && (
