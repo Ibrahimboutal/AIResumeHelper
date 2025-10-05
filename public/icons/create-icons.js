@@ -1,5 +1,5 @@
-const fs = require('fs');
-const { createCanvas } = require('canvas');
+import fs from 'fs';
+import { createCanvas } from 'canvas';
 
 function createIcon(size) {
   const canvas = createCanvas(size, size);

@@ -7,9 +7,9 @@ export interface ResumeAnalysis {
   suggestions: string[];
 }
 
-export function analyzeResume(resumeText: string, jobText: string): ResumeAnalysis {
-  const jobKeywords = extractKeywords(jobText);
-  const resumeKeywords = extractKeywords(resumeText);
+export function analyzeResume(resumeText: string, jobText: string, customKeywords: string[] = []): ResumeAnalysis {
+  const jobKeywords = extractKeywords(jobText, customKeywords);
+  const resumeKeywords = extractKeywords(resumeText, customKeywords);
 
   const resumeKeywordSet = new Set(
     resumeKeywords.map(k => k.text.toLowerCase())
@@ -46,36 +46,34 @@ function generateSuggestions(missingKeywords: Keyword[], score: number): string[
   const suggestions: string[] = [];
 
   if (score < 50) {
-    suggestions.push('Your resume has significant gaps compared to the job requirements. Consider tailoring it more closely.');
+    suggestions.push('Your resume could be better aligned. Focus on adding the top missing keywords.');
   } else if (score < 75) {
-    suggestions.push('Good match, but there is room for improvement.');
+    suggestions.push('Good match! Add a few more key skills to make your resume even stronger.');
   } else {
-    suggestions.push('Excellent match! Your resume aligns well with the job requirements.');
+    suggestions.push('Excellent match! Your resume is well-aligned with this job.');
   }
+
+  const topMissing = missingKeywords.slice(0, 5).map(k => k.text);
+    if (topMissing.length > 0) {
+        suggestions.push(`Integrate these top keywords: ${topMissing.join(', ')}.`);
+    }
 
   const technicalMissing = missingKeywords.filter(k => k.category === 'technical').slice(0, 3);
   if (technicalMissing.length > 0) {
     suggestions.push(
-      `Add technical skills: ${technicalMissing.map(k => k.text).join(', ')}`
+      `Showcase your experience with: ${technicalMissing.map(k => k.text).join(', ')}.`
     );
   }
 
-  const softMissing = missingKeywords.filter(k => k.category === 'soft').slice(0, 3);
+  const softMissing = missingKeywords.filter(k => k.category === 'soft').slice(0, 2);
   if (softMissing.length > 0) {
     suggestions.push(
-      `Highlight soft skills: ${softMissing.map(k => k.text).join(', ')}`
-    );
-  }
-
-  const certMissing = missingKeywords.filter(k => k.category === 'certification').slice(0, 2);
-  if (certMissing.length > 0) {
-    suggestions.push(
-      `Consider mentioning: ${certMissing.map(k => k.text).join(', ')}`
+      `Highlight soft skills like: ${softMissing.map(k => k.text).join(' and ')}.`
     );
   }
 
   if (missingKeywords.length > 0) {
-    suggestions.push('Use action verbs and quantify achievements where possible.');
+    suggestions.push('Quantify your achievements with numbers and metrics to show impact.');
   }
 
   return suggestions;

@@ -1,3 +1,9 @@
+// TODO: Implement a more robust manual selection mode
+// This is a placeholder to show the concept. A real implementation
+// would involve highlighting elements on mouseover and sending the
+// selected element's content to the popup.
+
+
 function detectJobPostingElements(): string {
   const selectors = [
     'article',

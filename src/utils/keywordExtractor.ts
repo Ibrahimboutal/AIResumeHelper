@@ -1,6 +1,6 @@
 export interface Keyword {
   text: string;
-  category: 'technical' | 'soft' | 'tool' | 'certification' | 'other';
+  category: 'technical' | 'soft' | 'tool' | 'certification' | 'custom' | 'other';
   count: number;
 }
 
@@ -38,7 +38,7 @@ const CERTIFICATIONS = [
   'CPA', 'CFA', 'MBA', 'PhD', 'Master\'s', 'Bachelor\'s'
 ];
 
-export function extractKeywords(text: string): Keyword[] {
+export function extractKeywords(text: string, customKeywords: string[] = []): Keyword[] {
   const keywordMap = new Map<string, Keyword>();
 
   const processKeywords = (keywords: string[], category: Keyword['category']) => {
@@ -65,6 +65,7 @@ export function extractKeywords(text: string): Keyword[] {
   processKeywords(SOFT_SKILLS, 'soft');
   processKeywords(TOOLS, 'tool');
   processKeywords(CERTIFICATIONS, 'certification');
+  processKeywords(customKeywords, 'custom');
 
   const keywords = Array.from(keywordMap.values());
   return keywords.sort((a, b) => b.count - a.count);
