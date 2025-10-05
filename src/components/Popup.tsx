@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Save, Briefcase, MousePointerClick } from 'lucide-react';
+import {
+  FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Save, Briefcase, MousePointerClick,
+  LayoutGrid, Library, Settings
+} from 'lucide-react';
 import { summarizeJob, tailorResume, generateCoverLetter } from '../utils/aiMocks';
 import { extractKeywords, type Keyword } from '../utils/keywordExtractor';
 import { analyzeResume, type ResumeAnalysis } from '../utils/resumeAnalyzer';
@@ -9,7 +12,10 @@ import CustomKeywords from './CustomKeywords';
 import ApplicationTracker from './ApplicationTracker';
 import ResumeVersions from './ResumeVersions';
 
+type Tab = 'analysis' | 'data' | 'settings';
+
 export default function Popup() {
+  const [activeTab, setActiveTab] = useState<Tab>('analysis');
   const [jobText, setJobText] = useState('');
   const [resumeText, setResumeText] = useState('');
   const [output, setOutput] = useState('');
@@ -20,13 +26,28 @@ export default function Popup() {
   const [customKeywords, setCustomKeywords] = useState<string[]>([]);
 
   useEffect(() => {
+    // Listen for storage changes to keep custom keywords in sync
+    const listener = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      if (areaName === 'sync' && changes.customKeywords) {
+        setCustomKeywords(changes.customKeywords.newValue || []);
+      }
+    };
+    chrome.storage.onChanged.addListener(listener);
+    
+    // Initial load
     chrome.storage.sync.get(['customKeywords'], (result) => {
       if (result.customKeywords) {
         setCustomKeywords(result.customKeywords);
       }
     });
+
+    return () => {
+      chrome.storage.onChanged.removeListener(listener);
+    }
   }, []);
 
+  // --- All your handler functions (extractJobPosting, handleFileUpload, etc.) remain the same ---
+  // ... (keeping them hidden for brevity, no changes needed to their logic)
   const extractJobPosting = async () => {
     setLoading(true);
     setActiveAction('extract');
@@ -140,16 +161,25 @@ export default function Popup() {
 
   const trackApplication = () => {
     if (!jobText) return;
-    const jobTitleMatch = jobText.match(/(.{0,50}(?:osition|itle).{0,50})/i);
-    const companyMatch = jobText.match(/(.{0,50}(?:ompany|ame).{0,50})/i);
+    // Simple parsing for job title and company from the job text
+    let jobTitle = 'Unknown Job Title';
+    let company = 'Unknown Company';
+    // This regex is very basic and may need improvement
+    const titleMatch = jobText.match(/job title:?\s*(.*)/i);
+    const companyMatch = jobText.match(/company:?\s*(.*)/i);
+    if (titleMatch && titleMatch[1]) jobTitle = titleMatch[1].split('\n')[0];
+    if (companyMatch && companyMatch[1]) company = companyMatch[1].split('\n')[0];
+
     const newApp = {
-      jobTitle: jobTitleMatch ? jobTitleMatch[1] : 'Unknown Job Title',
-      company: companyMatch ? companyMatch[1] : 'Unknown Company',
+      jobTitle,
+      company,
       date: new Date().toLocaleDateString(),
     };
     chrome.storage.local.get({ trackedApps: [] }, (result) => {
       const newApps = [...result.trackedApps, newApp];
-      chrome.storage.local.set({ trackedApps: newApps });
+      chrome.storage.local.set({ trackedApps: newApps }, () => {
+        alert('Application tracked!');
+      });
     });
   };
 
@@ -176,158 +206,137 @@ export default function Popup() {
     }
   }, [jobText, resumeText, customKeywords]);
 
+  const TabButton = ({ tab, icon, label }: { tab: Tab, icon: React.ReactNode, label: string }) => (
+    <button
+      onClick={() => setActiveTab(tab)}
+      className={`flex-1 flex items-center justify-center gap-2 p-3 text-sm font-medium border-b-2 transition-colors ${
+        activeTab === tab
+          ? 'border-blue-500 text-blue-600'
+          : 'border-transparent text-slate-500 hover:bg-slate-100'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+
   return (
-    <div className="w-[1200px] h-[700px] bg-gradient-to-br from-slate-50 to-blue-50 flex">
-      <div className="flex-1 flex flex-col">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Smart Resume Assistant</h1>
-              <p className="text-blue-100 text-sm mt-1">AI-powered career tools at your fingertips</p>
-            </div>
+    <div className="w-[800px] h-[700px] bg-slate-50 flex flex-col">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="bg-white/20 p-2 rounded-lg">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Smart Resume Assistant</h1>
+            <p className="text-blue-100 text-xs">AI-powered career tools</p>
           </div>
         </div>
+      </div>
+      
+      <nav className="flex border-b border-slate-200 bg-white">
+        <TabButton tab="analysis" icon={<LayoutGrid className="w-4 h-4" />} label="Analysis" />
+        <TabButton tab="data" icon={<Library className="w-4 h-4" />} label="My Data" />
+        <TabButton tab="settings" icon={<Settings className="w-4 h-4" />} label="Settings" />
+      </nav>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Input Actions</h2>
-            <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={extractJobPosting}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-                >
-                  {loading && activeAction === 'extract' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                  Extract Job Posting
-                </button>
-                 <button
-                  onClick={manualSelect}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 bg-gray-500 hover:bg-gray-600 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-                >
-                  <MousePointerClick className="w-4 h-4" />
-                  Manual Select
-                </button>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {activeTab === 'analysis' && (
+          <>
+            {/* Step 1: Inputs */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">1. Inputs</h2>
+              <div className="grid grid-cols-2 gap-2">
+                  <button onClick={extractJobPosting} disabled={loading} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
+                    {loading && activeAction === 'extract' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    Extract Job Posting
+                  </button>
+                   <button onClick={manualSelect} disabled={loading} className="w-full flex items-center justify-center gap-2 bg-gray-500 hover:bg-gray-600 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
+                    <MousePointerClick className="w-4 h-4" />
+                    Manual Select
+                  </button>
+              </div>
+              <div className="relative">
+                <input type="file" accept=".pdf,.docx,.txt" onChange={handleFileUpload} className="hidden" id="resume-upload" disabled={loading} />
+                <label htmlFor="resume-upload" className="w-full flex items-center justify-center gap-2 bg-slate-600 hover:bg-slate-700 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                  <FileText className="w-4 h-4" />
+                  Upload Resume
+                </label>
+              </div>
             </div>
 
-            <div className="relative">
-              <input
-                type="file"
-                accept=".pdf,.docx,.txt"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="resume-upload"
-                disabled={loading}
-              />
-              <label
-                htmlFor="resume-upload"
-                className="w-full flex items-center justify-center gap-2 bg-slate-600 hover:bg-slate-700 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <FileText className="w-4 h-4" />
-                Upload Resume
-              </label>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">AI Actions</h2>
-
-            <button
-              onClick={handleSummarizeJob}
-              disabled={loading || !jobText}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-            >
-              {loading && activeAction === 'summarize' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              Summarize Job
-            </button>
-
-            <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={handleTailorResume}
-                  disabled={loading || !jobText || !resumeText}
-                  className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-                >
-                  {loading && activeAction === 'tailor' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FileEdit className="w-4 h-4" />
-                  )}
-                  Tailor Resume
-                </button>
-
-                <button
-                  onClick={handleGenerateCoverLetter}
-                  disabled={loading || !jobText || !resumeText}
-                  className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-                >
-                  {loading && activeAction === 'coverLetter' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Mail className="w-4 h-4" />
-                  )}
-                  Generate Cover Letter
-                </button>
-            </div>
-             <button
-              onClick={trackApplication}
-              disabled={!jobText}
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-            >
-              <Briefcase className="w-4 h-4" />
-              Track Application
-            </button>
-          </div>
-
-          <div className="flex-1 min-h-0">
-            {output && (
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 h-full flex flex-col">
-                <div className="flex justify-between items-center mb-3">
-                    <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Output</h2>
-                    <div className="flex gap-2">
-                        <button onClick={copyToClipboard} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
-                            <Copy className="w-4 h-4" /> Copy
-                        </button>
-                        <button onClick={downloadAsTxt} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
-                            <Save className="w-4 h-4" /> Download
-                        </button>
-                    </div>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4 flex-1 overflow-y-auto">
-                  <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
-                    {output}
-                  </pre>
+            {/* Step 2: Analysis */}
+            {analysis && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">2. Analysis</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <ResumeScore analysis={analysis} />
+                  <KeywordSidebar keywords={keywords} title="Job Keywords" />
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
-        <div className="bg-slate-100 border-t border-slate-200 px-6 py-3">
+            {/* Step 3: AI Actions & Output */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">3. AI Actions</h2>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={handleTailorResume} disabled={loading || !jobText || !resumeText} className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
+                  {loading && activeAction === 'tailor' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileEdit className="w-4 h-4" />}
+                  Tailor Resume
+                </button>
+                <button onClick={handleGenerateCoverLetter} disabled={loading || !jobText || !resumeText} className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
+                  {loading && activeAction === 'coverLetter' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                  Generate Cover Letter
+                </button>
+                <button onClick={handleSummarizeJob} disabled={loading || !jobText} className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
+                  {loading && activeAction === 'summarize' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  Summarize Job
+                </button>
+                 <button onClick={trackApplication} disabled={!jobText} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
+                  <Briefcase className="w-4 h-4" />
+                  Track Application
+                </button>
+              </div>
+              {output && (
+                <div className="pt-4 mt-4 border-t border-slate-200">
+                  <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-sm font-semibold text-slate-600">Output</h3>
+                      <div className="flex gap-3">
+                          <button onClick={copyToClipboard} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800">
+                              <Copy className="w-3 h-3" /> Copy
+                          </button>
+                          <button onClick={downloadAsTxt} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800">
+                              <Save className="w-3 h-3" /> Download
+                          </button>
+                      </div>
+                  </div>
+                  <div className="bg-slate-100 rounded-lg p-3 max-h-64 overflow-y-auto">
+                    <pre className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                      {output}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {activeTab === 'data' && (
+          <div className="space-y-4">
+            <ResumeVersions resumeText={resumeText} setResumeText={setResumeText} />
+            <ApplicationTracker />
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <CustomKeywords />
+        )}
+      </div>
+
+      <div className="bg-slate-100 border-t border-slate-200 px-4 py-2">
           <p className="text-xs text-slate-500 text-center">
             Status: {jobText ? '✓ Job loaded' : '○ No job'} | {resumeText ? '✓ Resume loaded' : '○ No resume'}
           </p>
-        </div>
-      </div>
-
-      <div className="w-80 border-l border-slate-200 bg-white/50 overflow-y-auto p-4 space-y-4">
-        <KeywordSidebar keywords={keywords} title="Job Keywords" />
-        <ResumeScore analysis={analysis} />
-      </div>
-      <div className="w-80 border-l border-slate-200 bg-white/50 overflow-y-auto p-4 space-y-4">
-        <ResumeVersions resumeText={resumeText} setResumeText={setResumeText} />
-        <CustomKeywords />
-        <ApplicationTracker />
       </div>
     </div>
   );
