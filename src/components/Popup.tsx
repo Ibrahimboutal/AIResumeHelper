@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Save, Briefcase, MousePointerClick,
-  LayoutGrid, Library, Settings, PartyPopper
-} from 'lucide-react';
+import { FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Save, Briefcase, MousePointerClick, LayoutGrid, Library, Settings, LogOut, User, PartyPopper } from 'lucide-react';
 import { summarizeJob, tailorResume, generateCoverLetter } from '../utils/aiMocks';
 import { extractKeywords, type Keyword } from '../utils/keywordExtractor';
 import { analyzeResume, type ResumeAnalysis } from '../utils/resumeAnalyzer';
@@ -11,10 +8,16 @@ import ResumeScore from './ResumeScore';
 import CustomKeywords from './CustomKeywords';
 import ApplicationTracker from './ApplicationTracker';
 import ResumeVersions from './ResumeVersions';
+import AuthModal from './AuthModal';
+import { useAuth } from '../hooks/useAuth';
+import { saveResume, getResumes } from '../services/resumeService';
+import { saveJobApplication } from '../services/applicationService';
 
 type Tab = 'analysis' | 'data' | 'settings';
 
 export default function Popup() {
+  const { user, loading: authLoading, signOut, isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('analysis');
   const [jobText, setJobText] = useState('');
   const [resumeText, setResumeText] = useState('');
@@ -191,28 +194,52 @@ export default function Popup() {
     }
   };
 
-  const trackApplication = () => {
-    if (!jobText) return;
-    // Simple parsing for job title and company from the job text
+  const trackApplication = async () => {
+    if (!jobText) {
+      setOutput('Please extract a job posting first.');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+
     let jobTitle = 'Unknown Job Title';
     let company = 'Unknown Company';
-    // This regex is very basic and may need improvement
     const titleMatch = jobText.match(/job title:?\s*(.*)/i);
     const companyMatch = jobText.match(/company:?\s*(.*)/i);
     if (titleMatch && titleMatch[1]) jobTitle = titleMatch[1].split('\n')[0];
     if (companyMatch && companyMatch[1]) company = companyMatch[1].split('\n')[0];
 
-    const newApp = {
-      jobTitle,
-      company,
-      date: new Date().toLocaleDateString(),
-    };
-    chrome.storage.local.get({ trackedApps: [] }, (result) => {
-      const newApps = [...result.trackedApps, newApp];
-      chrome.storage.local.set({ trackedApps: newApps }, () => {
-        alert('Application tracked!');
-      });
-    });
+    try {
+      await saveJobApplication(jobTitle, company, undefined, jobText);
+      setOutput(`Application tracked successfully!\n\nJob: ${jobTitle}\nCompany: ${company}\nDate: ${new Date().toLocaleDateString()}`);
+    } catch (error) {
+      setOutput('Error: Could not save application. Please try again.');
+    }
+  };
+
+  const handleSaveResume = async () => {
+    if (!resumeText) {
+      setOutput('Please upload a resume first.');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    const resumeName = prompt('Enter a name for this resume:');
+    if (!resumeName) return;
+
+    try {
+      await saveResume(resumeName, resumeText);
+      setOutput(`Resume "${resumeName}" saved successfully!`);
+    } catch (error) {
+      setOutput('Error: Could not save resume. Please try again.');
+    }
   };
 
   const copyToClipboard = () => {
@@ -284,16 +311,52 @@ export default function Popup() {
   return (
     <div className="w-[800px] h-[700px] bg-slate-50 flex flex-col">
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="bg-white/20 p-2 rounded-lg">
-            <Sparkles className="w-5 h-5" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-lg">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">Smart Resume Assistant</h1>
+              <p className="text-blue-100 text-xs">AI-powered career tools</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold">Smart Resume Assistant</h1>
-            <p className="text-blue-100 text-xs">AI-powered career tools</p>
+
+          <div className="flex items-center gap-2">
+            {isAuthenticated ? (
+              <>
+                <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg">
+                  <User className="w-4 h-4" />
+                  <span className="text-sm">{user?.email?.split('@')[0]}</span>
+                </div>
+                <button
+                  onClick={signOut}
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg text-sm transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                <User className="w-4 h-4" />
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => {
+          setShowAuthModal(false);
+        }}
+      />
       
       <nav className="flex border-b border-slate-200 bg-white">
         <TabButton tab="analysis" icon={<LayoutGrid className="w-4 h-4" />} label="Analysis" />
@@ -327,6 +390,16 @@ export default function Popup() {
                   Upload Resume
                 </label>
               </div>
+              {resumeText && (
+                <button
+                  onClick={handleSaveResume}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Resume
+                </button>
+              )}
             </div>
 
             {/* Step 2: Analysis */}
