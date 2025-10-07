@@ -9,6 +9,7 @@ import CustomKeywords from './CustomKeywords';
 import ApplicationTracker from './ApplicationTracker';
 import ResumeVersions from './ResumeVersions';
 import AuthModal from './AuthModal';
+import Dashboard from './Dashboard';
 import { useAuth } from '../hooks/useAuth';
 import { saveResume, getResumes } from '../services/resumeService';
 import { saveJobApplication } from '../services/applicationService';
@@ -461,8 +462,11 @@ export default function Popup() {
 
         {activeTab === 'data' && (
           <div className="space-y-4">
-            <ResumeVersions resumeText={resumeText} setResumeText={setResumeText} />
-            <ApplicationTracker />
+            <Dashboard />
+            <div className="grid grid-cols-2 gap-4">
+              <ResumeVersions resumeText={resumeText} setResumeText={setResumeText} />
+              <ApplicationTracker />
+            </div>
           </div>
         )}
 
