@@ -59,6 +59,18 @@ export default function Dashboard() {
     ? Math.round(((stats.interview + stats.offer) / stats.total) * 100)
     : 0;
 
+  const offerRate = stats.total > 0
+    ? Math.round((stats.offer / stats.total) * 100)
+    : 0;
+
+  const interviewRate = stats.total > 0
+    ? Math.round((stats.interview / stats.total) * 100)
+    : 0;
+
+  const responseRate = stats.total > 0
+    ? Math.round(((stats.total - stats.applied) / stats.total) * 100)
+    : 0;
+
   const StatCard = ({ icon, label, value, color, bgColor }: any) => (
     <div className={`${bgColor} border border-${color}-200 rounded-lg p-4`}>
       <div className="flex items-center justify-between mb-2">
@@ -84,7 +96,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-3">
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
             <p className="text-blue-100 text-xs mb-1">Total Applications</p>
             <p className="text-3xl font-bold">{stats.total}</p>
@@ -95,7 +107,14 @@ export default function Dashboard() {
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
             <p className="text-blue-100 text-xs mb-1">Success Rate</p>
-            <p className="text-3xl font-bold">{successRate}%</p>
+            <div className="flex items-baseline gap-1">
+              <p className="text-3xl font-bold">{successRate}%</p>
+              {successRate >= 30 && <span className="text-emerald-300 text-xs">↑</span>}
+            </div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+            <p className="text-blue-100 text-xs mb-1">Response Rate</p>
+            <p className="text-3xl font-bold">{responseRate}%</p>
           </div>
         </div>
       </div>
@@ -150,11 +169,11 @@ export default function Dashboard() {
             <div>
               <div className="flex justify-between text-xs text-slate-600 mb-1">
                 <span>Applied</span>
-                <span>{Math.round((stats.applied / stats.total) * 100)}%</span>
+                <span className="font-semibold">{stats.applied} ({Math.round((stats.applied / stats.total) * 100)}%)</span>
               </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-600"
+                  className="h-full bg-blue-600 transition-all duration-500"
                   style={{ width: `${(stats.applied / stats.total) * 100}%` }}
                 />
               </div>
@@ -163,11 +182,11 @@ export default function Dashboard() {
             <div>
               <div className="flex justify-between text-xs text-slate-600 mb-1">
                 <span>Interview</span>
-                <span>{Math.round((stats.interview / stats.total) * 100)}%</span>
+                <span className="font-semibold">{stats.interview} ({Math.round((stats.interview / stats.total) * 100)}%)</span>
               </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-amber-600"
+                  className="h-full bg-amber-600 transition-all duration-500"
                   style={{ width: `${(stats.interview / stats.total) * 100}%` }}
                 />
               </div>
@@ -176,13 +195,26 @@ export default function Dashboard() {
             <div>
               <div className="flex justify-between text-xs text-slate-600 mb-1">
                 <span>Offers</span>
-                <span>{Math.round((stats.offer / stats.total) * 100)}%</span>
+                <span className="font-semibold">{stats.offer} ({Math.round((stats.offer / stats.total) * 100)}%)</span>
               </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-emerald-600"
+                  className="h-full bg-emerald-600 transition-all duration-500"
                   style={{ width: `${(stats.offer / stats.total) * 100}%` }}
                 />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-slate-200">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-3 rounded-lg border border-emerald-200">
+                <p className="text-xs text-emerald-700 font-medium mb-1">Interview Rate</p>
+                <p className="text-2xl font-bold text-emerald-700">{interviewRate}%</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
+                <p className="text-xs text-blue-700 font-medium mb-1">Offer Rate</p>
+                <p className="text-2xl font-bold text-blue-700">{offerRate}%</p>
               </div>
             </div>
           </div>

@@ -21,7 +21,7 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
     );
   }
 
-  const { score, matchedKeywords, missingKeywords, suggestions } = analysis;
+  const { score, matchedKeywords, missingKeywords, suggestions, detailedAnalysis } = analysis;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-4">
@@ -74,6 +74,58 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
         </div>
       )}
 
+      {detailedAnalysis && (
+        <div className="pt-2 border-t border-slate-200">
+          <h3 className="text-xs font-semibold text-slate-600 uppercase mb-2">
+            Detailed Match Analysis
+          </h3>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-600">Technical Skills</span>
+              <div className="flex items-center gap-2">
+                <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 transition-all duration-500"
+                    style={{ width: `${detailedAnalysis.technicalMatch}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-slate-700 w-10 text-right">
+                  {Math.round(detailedAnalysis.technicalMatch)}%
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-600">Soft Skills</span>
+              <div className="flex items-center gap-2">
+                <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-600 transition-all duration-500"
+                    style={{ width: `${detailedAnalysis.softSkillsMatch}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-slate-700 w-10 text-right">
+                  {Math.round(detailedAnalysis.softSkillsMatch)}%
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-600">ATS Compatibility</span>
+              <div className="flex items-center gap-2">
+                <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ${detailedAnalysis.atsScore >= 70 ? 'bg-emerald-600' : detailedAnalysis.atsScore >= 50 ? 'bg-amber-600' : 'bg-rose-600'}`}
+                    style={{ width: `${detailedAnalysis.atsScore}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-slate-700 w-10 text-right">
+                  {detailedAnalysis.atsScore}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {missingKeywords.length > 0 && (
         <div className="pt-2 border-t border-slate-200">
           <h3 className="text-xs font-semibold text-slate-600 uppercase mb-2">
@@ -83,9 +135,12 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
             {missingKeywords.slice(0, 8).map((keyword, index) => (
               <span
                 key={index}
-                className="px-2.5 py-1 bg-rose-100 text-rose-700 border border-rose-200 rounded-full text-xs font-medium"
+                className="px-2.5 py-1 bg-rose-100 text-rose-700 border border-rose-200 rounded-full text-xs font-medium inline-flex items-center gap-1"
               >
                 {keyword.text}
+                {keyword.importance && keyword.importance > 2 && (
+                  <span className="text-rose-500 text-xs">!</span>
+                )}
               </span>
             ))}
           </div>

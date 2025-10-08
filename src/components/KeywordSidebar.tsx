@@ -80,17 +80,28 @@ export default function KeywordSidebar({ keywords, title = 'Key Skills' }: Keywo
                 {getCategoryLabel(category)}
               </h3>
               <div className="flex flex-wrap gap-2">
-                {categoryKeywords.map((keyword, index) => (
-                  <div
-                    key={index}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(keyword.category)}`}
-                  >
-                    <span>{keyword.text}</span>
-                    {keyword.count > 1 && (
-                      <span className="text-xs opacity-75">×{keyword.count}</span>
-                    )}
-                  </div>
-                ))}
+                {categoryKeywords.map((keyword, index) => {
+                  const importance = keyword.importance || 0;
+                  const isHighPriority = importance > 2;
+                  const isMediumPriority = importance > 1.5 && importance <= 2;
+
+                  return (
+                    <div
+                      key={index}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(keyword.category)} ${isHighPriority ? 'ring-2 ring-offset-1 ring-amber-400' : ''}`}
+                      title={`Importance: ${importance.toFixed(1)} | Count: ${keyword.count}`}
+                    >
+                      <span className="flex items-center gap-1">
+                        {isHighPriority && <span className="text-amber-600">★</span>}
+                        {isMediumPriority && <span className="text-slate-400">★</span>}
+                        {keyword.text}
+                      </span>
+                      {keyword.count > 1 && (
+                        <span className="text-xs opacity-75 font-semibold bg-white/50 px-1 rounded">×{keyword.count}</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}

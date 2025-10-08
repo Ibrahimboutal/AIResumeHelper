@@ -117,12 +117,27 @@ function calculateExperienceScore(resumeText: string, jobText: string): number {
   }
 
   const actionVerbs = extractActionVerbs(resumeText);
-  if (actionVerbs.length >= 10) score += 15;
+  if (actionVerbs.length >= 15) score += 20;
+  else if (actionVerbs.length >= 10) score += 15;
   else if (actionVerbs.length >= 5) score += 10;
   else if (actionVerbs.length >= 3) score += 5;
 
-  const hasMetrics = /\d+%|\$\d+|increased|reduced|improved|enhanced/.test(resumeText);
-  if (hasMetrics) score += 5;
+  const metricsPatterns = [
+    /\d+%/g,
+    /\$\d{1,3}(?:,\d{3})*/g,
+    /\d+x\s+(?:increase|improvement|growth)/gi,
+    /(?:increased|reduced|improved|enhanced|optimized|accelerated)\s+(?:by\s+)?\d+/gi
+  ];
+
+  let metricsCount = 0;
+  metricsPatterns.forEach(pattern => {
+    const matches = resumeText.match(pattern);
+    if (matches) metricsCount += matches.length;
+  });
+
+  if (metricsCount >= 5) score += 10;
+  else if (metricsCount >= 3) score += 7;
+  else if (metricsCount >= 1) score += 5;
 
   return Math.min(100, score);
 }
@@ -130,26 +145,38 @@ function calculateExperienceScore(resumeText: string, jobText: string): number {
 function calculateFormattingScore(resumeText: string): number {
   let score = 0;
 
-  const hasSections = /(experience|education|skills|summary)/gi.test(resumeText);
-  if (hasSections) score += 25;
+  const standardSections = /(experience|education|skills|summary|projects|certifications)/gi;
+  const sectionMatches = resumeText.match(standardSections);
+  const sectionCount = sectionMatches ? new Set(sectionMatches.map(s => s.toLowerCase())).size : 0;
 
-  const hasContactInfo = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(resumeText) ||
-                        /\d{3}[-.]?\d{3}[-.]?\d{4}/.test(resumeText);
-  if (hasContactInfo) score += 20;
+  if (sectionCount >= 4) score += 30;
+  else if (sectionCount >= 3) score += 25;
+  else if (sectionCount >= 2) score += 15;
+
+  const hasEmail = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(resumeText);
+  const hasPhone = /\d{3}[-.]?\d{3}[-.]?\d{4}/.test(resumeText);
+  if (hasEmail && hasPhone) score += 20;
+  else if (hasEmail || hasPhone) score += 10;
 
   const wordCount = resumeText.split(/\s+/).length;
-  if (wordCount >= 300 && wordCount <= 800) score += 20;
-  else if (wordCount >= 200 && wordCount <= 1000) score += 15;
-  else if (wordCount >= 100) score += 10;
+  if (wordCount >= 400 && wordCount <= 700) score += 20;
+  else if (wordCount >= 300 && wordCount <= 900) score += 15;
+  else if (wordCount >= 200 && wordCount <= 1100) score += 10;
+  else if (wordCount >= 100) score += 5;
 
-  const hasConsistentFormatting = !/(  {2,})/g.test(resumeText);
-  if (hasConsistentFormatting) score += 15;
+  const lines = resumeText.split('\n');
+  const hasConsistentSpacing = lines.filter(line => line.trim().length > 0).length > 10;
+  if (hasConsistentSpacing) score += 10;
 
-  const hasBulletPoints = /[•\-\*]/.test(resumeText);
-  if (hasBulletPoints) score += 10;
+  const bulletPoints = resumeText.match(/[•\-\*]/g);
+  const bulletCount = bulletPoints ? bulletPoints.length : 0;
+  if (bulletCount >= 10) score += 15;
+  else if (bulletCount >= 5) score += 10;
+  else if (bulletCount >= 3) score += 5;
 
-  const hasProperCapitalization = /[A-Z][a-z]+/.test(resumeText);
-  if (hasProperCapitalization) score += 10;
+  const hasProperCapitalization = /[A-Z][a-z]+/.test(resumeText) &&
+                                 !/[a-z][A-Z]/.test(resumeText);
+  if (hasProperCapitalization) score += 5;
 
   return Math.min(100, score);
 }
@@ -157,25 +184,35 @@ function calculateFormattingScore(resumeText: string): number {
 function calculateATSCompatibility(resumeText: string, matchedKeywords: Keyword[]): number {
   let score = 0;
 
-  const hasStandardSections = /\b(EXPERIENCE|EDUCATION|SKILLS)\b/i.test(resumeText);
+  const standardSectionHeaders = /\b(EXPERIENCE|EDUCATION|SKILLS|SUMMARY|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE)\b/i;
+  const hasStandardSections = standardSectionHeaders.test(resumeText);
   if (hasStandardSections) score += 25;
 
-  const keywordDensity = matchedKeywords.length / (resumeText.split(/\s+/).length / 100);
-  if (keywordDensity >= 2 && keywordDensity <= 5) score += 25;
-  else if (keywordDensity >= 1 && keywordDensity <= 7) score += 20;
+  const wordCount = resumeText.split(/\s+/).length;
+  const keywordDensity = (matchedKeywords.length / wordCount) * 100;
+  if (keywordDensity >= 2 && keywordDensity <= 4) score += 25;
+  else if (keywordDensity >= 1.5 && keywordDensity <= 5) score += 20;
+  else if (keywordDensity >= 1 && keywordDensity <= 6) score += 15;
   else if (keywordDensity > 0) score += 10;
 
-  const hasSimpleFormatting = !/[^\x00-\x7F]/.test(resumeText);
-  if (hasSimpleFormatting) score += 15;
+  const hasSimpleFormatting = !/[^\x00-\x7F]/.test(resumeText.slice(0, 500));
+  if (hasSimpleFormatting) score += 10;
 
-  const hasNoTables = !/\|/.test(resumeText);
-  if (hasNoTables) score += 10;
+  const hasMinimalTables = (resumeText.match(/\|/g) || []).length < 5;
+  if (hasMinimalTables) score += 10;
 
-  const hasContactAtTop = resumeText.slice(0, 200).match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
-  if (hasContactAtTop) score += 15;
+  const topSection = resumeText.slice(0, 300);
+  const hasContactAtTop = topSection.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  if (hasContactAtTop) score += 10;
 
-  const hasDateFormats = /\d{4}|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/i.test(resumeText);
+  const hasDateFormats = /\d{4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}/i.test(resumeText);
   if (hasDateFormats) score += 10;
+
+  const hasLinkedInOrPortfolio = /linkedin\.com|github\.com|portfolio/i.test(resumeText);
+  if (hasLinkedInOrPortfolio) score += 5;
+
+  const avoidedProblematicFormatting = !/\t{2,}|\s{4,}/.test(resumeText);
+  if (avoidedProblematicFormatting) score += 5;
 
   return Math.min(100, score);
 }

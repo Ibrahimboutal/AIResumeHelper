@@ -28,6 +28,7 @@ export default function Popup() {
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [customKeywords, setCustomKeywords] = useState<string[]>([]);
+  const [keywordFilter, setKeywordFilter] = useState<'all' | 'technical' | 'soft' | 'tool' | 'certification'>('all');
 
   useEffect(() => {
     // Listen for storage changes to keep custom keywords in sync
@@ -409,7 +410,27 @@ export default function Popup() {
                 <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">2. Analysis</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <ResumeScore analysis={analysis} />
-                  <KeywordSidebar keywords={keywords} title="Job Keywords" />
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <label className="text-xs text-slate-600 font-medium">Filter:</label>
+                      <select
+                        value={keywordFilter}
+                        onChange={(e) => setKeywordFilter(e.target.value as any)}
+                        title='Filter Keywords by Category'
+                        className="text-xs border border-slate-300 rounded px-2 py-1 flex-1"
+                      >
+                        <option value="all">All Keywords ({keywords.length})</option>
+                        <option value="technical">Technical ({keywords.filter(k => k.category === 'technical').length})</option>
+                        <option value="soft">Soft Skills ({keywords.filter(k => k.category === 'soft').length})</option>
+                        <option value="tool">Tools ({keywords.filter(k => k.category === 'tool').length})</option>
+                        <option value="certification">Certifications ({keywords.filter(k => k.category === 'certification').length})</option>
+                      </select>
+                    </div>
+                    <KeywordSidebar
+                      keywords={keywordFilter === 'all' ? keywords : keywords.filter(k => k.category === keywordFilter)}
+                      title="Job Keywords"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -438,17 +459,28 @@ export default function Popup() {
               {output && (
                 <div className="pt-4 mt-4 border-t border-slate-200">
                   <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-sm font-semibold text-slate-600">Output</h3>
+                      <h3 className="text-sm font-semibold text-slate-600 flex items-center gap-2">
+                        Output
+                        <span className="text-xs text-slate-500 font-normal">({output.split(/\s+/).length} words)</span>
+                      </h3>
                       <div className="flex gap-3">
-                          <button onClick={copyToClipboard} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800">
-                              <Copy className="w-3 h-3" /> Copy
+                          <button
+                            onClick={copyToClipboard}
+                            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors"
+                            title="Copy to clipboard"
+                          >
+                            <Copy className="w-3 h-3" /> Copy
                           </button>
-                          <button onClick={downloadAsTxt} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800">
-                              <Save className="w-3 h-3" /> Download
+                          <button
+                            onClick={downloadAsTxt}
+                            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors"
+                            title="Download as text file"
+                          >
+                            <Save className="w-3 h-3" /> Download
                           </button>
                       </div>
                   </div>
-                  <div className="bg-slate-100 rounded-lg p-3 max-h-64 overflow-y-auto">
+                  <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-4 max-h-64 overflow-y-auto border border-slate-200">
                     <pre className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
                       {output}
                     </pre>
