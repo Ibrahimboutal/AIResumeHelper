@@ -3,6 +3,7 @@ import { FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Sa
 import { summarizeJob, tailorResume, generateCoverLetter } from '../utils/aiMocks';
 import { extractKeywords, type Keyword } from '../utils/keywordExtractor';
 import { analyzeResume, type ResumeAnalysis } from '../utils/resumeAnalyzer';
+import { extractTextFromFile } from '../utils/pdfExtractor';
 import KeywordSidebar from './KeywordSidebar';
 import ResumeScore from './ResumeScore';
 import CustomKeywords from './CustomKeywords';
@@ -112,17 +113,31 @@ export default function Popup() {
     }
   };
     
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
+    setLoading(true);
+    setActiveAction('upload');
+    setOutput(`Extracting text from ${file.name}...`);
+
+    try {
+      const text = await extractTextFromFile(file);
+
+      if (!text || text.trim().length === 0) {
+        throw new Error('No text could be extracted from the file. The PDF might be image-based or empty.');
+      }
+
       setResumeText(text);
-      setOutput(`Resume uploaded successfully: ${file.name}\n\nPreview:\n${text.slice(0, 500)}...`);
-    };
-    reader.readAsText(file);
+      setOutput(`Resume uploaded successfully: ${file.name}\n\nExtracted ${text.length} characters\n\nPreview:\n${text.slice(0, 500)}...`);
+    } catch (error) {
+      console.error('Error reading resume:', error);
+      setOutput(`Error: ${error instanceof Error ? error.message : 'Failed to read resume file'}`);
+      setResumeText('');
+    } finally {
+      setLoading(false);
+      setActiveAction('');
+    }
   };
 
   const handleSummarizeJob = async () => {
