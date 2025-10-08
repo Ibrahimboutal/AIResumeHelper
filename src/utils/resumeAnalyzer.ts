@@ -20,6 +20,16 @@ export interface DetailedAnalysis {
 }
 
 export function analyzeResume(resumeText: string, jobText: string, customKeywords: string[] = []): ResumeAnalysis {
+  if (!resumeText || !jobText) {
+    return {
+      score: 0,
+      matchedKeywords: [],
+      missingKeywords: [],
+      suggestions: ['Please provide both resume and job posting text.'],
+      detailedAnalysis: undefined
+    };
+  }
+
   const jobKeywords = extractKeywords(jobText, customKeywords);
   const resumeKeywords = extractKeywords(resumeText, customKeywords);
 

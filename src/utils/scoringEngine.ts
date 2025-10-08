@@ -32,11 +32,11 @@ export function calculateComprehensiveScore(
   };
 
   const weights = {
-    keywordMatch: 0.30,
+    keywordMatch: 0.35,
     technicalSkills: 0.25,
     experience: 0.20,
-    formatting: 0.10,
-    atsCompatibility: 0.15
+    formatting: 0.08,
+    atsCompatibility: 0.12
   };
 
   const overallScore = Math.round(
@@ -98,7 +98,7 @@ function calculateTechnicalSkillsScore(matched: Keyword[], allJobKeywords: Keywo
 }
 
 function calculateExperienceScore(resumeText: string, jobText: string): number {
-  let score = 50;
+  let score = 40;
 
   const jobYearsMatch = jobText.match(/(\d+)\+?\s*years?/gi);
   const resumeYearsMatch = resumeText.match(/(\d+)\+?\s*years?/gi);
@@ -108,16 +108,21 @@ function calculateExperienceScore(resumeText: string, jobText: string): number {
     const resumeYears = Math.max(...resumeYearsMatch.map(m => parseInt(m.match(/\d+/)?.[0] || '0')));
 
     if (resumeYears >= jobYears) {
-      score += 30;
-    } else if (resumeYears >= jobYears * 0.7) {
-      score += 20;
+      score += 35;
+    } else if (resumeYears >= jobYears * 0.8) {
+      score += 25;
+    } else if (resumeYears >= jobYears * 0.6) {
+      score += 15;
     } else {
-      score += 10;
+      score += 8;
     }
+  } else if (resumeYearsMatch && !jobYearsMatch) {
+    score += 15;
   }
 
   const actionVerbs = extractActionVerbs(resumeText);
-  if (actionVerbs.length >= 15) score += 20;
+  if (actionVerbs.length >= 20) score += 25;
+  else if (actionVerbs.length >= 15) score += 20;
   else if (actionVerbs.length >= 10) score += 15;
   else if (actionVerbs.length >= 5) score += 10;
   else if (actionVerbs.length >= 3) score += 5;
@@ -135,8 +140,9 @@ function calculateExperienceScore(resumeText: string, jobText: string): number {
     if (matches) metricsCount += matches.length;
   });
 
-  if (metricsCount >= 5) score += 10;
-  else if (metricsCount >= 3) score += 7;
+  if (metricsCount >= 8) score += 15;
+  else if (metricsCount >= 5) score += 12;
+  else if (metricsCount >= 3) score += 8;
   else if (metricsCount >= 1) score += 5;
 
   return Math.min(100, score);

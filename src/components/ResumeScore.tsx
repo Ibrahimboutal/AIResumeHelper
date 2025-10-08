@@ -136,10 +136,33 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
               <span
                 key={index}
                 className="px-2.5 py-1 bg-rose-100 text-rose-700 border border-rose-200 rounded-full text-xs font-medium inline-flex items-center gap-1"
+                title={`Importance: ${keyword.importance?.toFixed(1) || '0'} - ${keyword.category}`}
               >
                 {keyword.text}
                 {keyword.importance && keyword.importance > 2 && (
-                  <span className="text-rose-500 text-xs">!</span>
+                  <span className="text-rose-500 text-xs font-bold">!</span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {matchedKeywords.length > 0 && (
+        <div className="pt-2 border-t border-slate-200">
+          <h3 className="text-xs font-semibold text-slate-600 uppercase mb-2">
+            Top Matched Keywords
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {matchedKeywords.slice(0, 6).map((keyword, index) => (
+              <span
+                key={index}
+                className="px-2.5 py-1 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium inline-flex items-center gap-1"
+                title={`Count: ${keyword.count} - ${keyword.category}`}
+              >
+                {keyword.text}
+                {keyword.count > 1 && (
+                  <span className="text-emerald-600 text-xs font-semibold bg-white/50 px-1 rounded">×{keyword.count}</span>
                 )}
               </span>
             ))}

@@ -7,33 +7,35 @@ export interface Keyword {
 }
 
 const TECHNICAL_SKILLS = [
-  'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Go', 'Rust', 'Scala',
-  'React', 'Angular', 'Vue', 'Svelte', 'Next.js', 'Nuxt', 'Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Rails', 'FastAPI',
-  'HTML', 'CSS', 'Sass', 'LESS', 'Tailwind', 'Bootstrap', 'Material-UI', 'Chakra UI',
-  'SQL', 'NoSQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'DynamoDB', 'Cassandra', 'Elasticsearch',
-  'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'CI/CD', 'Terraform', 'Ansible',
-  'Git', 'GitHub', 'GitLab', 'Bitbucket', 'SVN',
-  'REST', 'GraphQL', 'API', 'Microservices', 'Serverless', 'WebSocket', 'gRPC',
-  'Machine Learning', 'AI', 'Deep Learning', 'NLP', 'Computer Vision', 'Data Science',
-  'TensorFlow', 'PyTorch', 'scikit-learn', 'Keras', 'OpenCV',
-  'Agile', 'Scrum', 'Kanban', 'Jira', 'DevOps', 'Testing', 'Jest', 'Mocha', 'Pytest', 'Selenium',
-  'Redux', 'MobX', 'Vuex', 'RxJS', 'Webpack', 'Vite', 'Babel', 'ESLint', 'Prettier',
-  'OAuth', 'JWT', 'Authentication', 'Security', 'Encryption', 'HTTPS', 'SSL',
-  'Performance Optimization', 'Responsive Design', 'Accessibility', 'SEO', 'PWA'
+  'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Go', 'Rust', 'Scala', 'Perl',
+  'React', 'Angular', 'Vue', 'Svelte', 'Next.js', 'Nuxt', 'Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Rails', 'FastAPI', 'Laravel',
+  'HTML', 'CSS', 'Sass', 'LESS', 'Tailwind', 'Bootstrap', 'Material-UI', 'Chakra UI', 'Ant Design',
+  'SQL', 'NoSQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'DynamoDB', 'Cassandra', 'Elasticsearch', 'Oracle', 'SQLite',
+  'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'CI/CD', 'Terraform', 'Ansible', 'CloudFormation', 'Helm',
+  'Git', 'GitHub', 'GitLab', 'Bitbucket', 'SVN', 'Mercurial',
+  'REST', 'GraphQL', 'API', 'Microservices', 'Serverless', 'WebSocket', 'gRPC', 'SOAP',
+  'Machine Learning', 'AI', 'Deep Learning', 'NLP', 'Computer Vision', 'Data Science', 'LLM', 'Neural Networks',
+  'TensorFlow', 'PyTorch', 'scikit-learn', 'Keras', 'OpenCV', 'Pandas', 'NumPy', 'Matplotlib',
+  'Agile', 'Scrum', 'Kanban', 'Jira', 'DevOps', 'Testing', 'Jest', 'Mocha', 'Pytest', 'Selenium', 'Cypress', 'Playwright',
+  'Redux', 'MobX', 'Vuex', 'RxJS', 'Webpack', 'Vite', 'Babel', 'ESLint', 'Prettier', 'Rollup', 'Parcel',
+  'OAuth', 'JWT', 'Authentication', 'Security', 'Encryption', 'HTTPS', 'SSL', 'TLS', 'SAML',
+  'Performance Optimization', 'Responsive Design', 'Accessibility', 'SEO', 'PWA', 'WCAG', 'ARIA'
 ];
 
 const SOFT_SKILLS = [
   'Leadership', 'Communication', 'Teamwork', 'Problem Solving', 'Critical Thinking',
   'Time Management', 'Collaboration', 'Adaptability', 'Creativity', 'Initiative',
   'Analytical', 'Detail-Oriented', 'Self-Motivated', 'Organized', 'Flexible',
-  'Interpersonal', 'Presentation', 'Negotiation', 'Mentoring', 'Coaching'
+  'Interpersonal', 'Presentation', 'Negotiation', 'Mentoring', 'Coaching',
+  'Strategic Thinking', 'Decision Making', 'Conflict Resolution', 'Emotional Intelligence',
+  'Accountability', 'Proactive', 'Reliability', 'Work Ethic', 'Customer Focus'
 ];
 
 const TOOLS = [
-  'Visual Studio Code', 'VS Code', 'IntelliJ', 'Eclipse', 'Xcode',
-  'Figma', 'Sketch', 'Adobe XD', 'Photoshop', 'Illustrator',
-  'Slack', 'Teams', 'Zoom', 'Confluence', 'Notion',
-  'Postman', 'Swagger', 'Tableau', 'Power BI'
+  'Visual Studio Code', 'VS Code', 'IntelliJ', 'Eclipse', 'Xcode', 'Sublime Text', 'Atom', 'Vim', 'Emacs',
+  'Figma', 'Sketch', 'Adobe XD', 'Photoshop', 'Illustrator', 'Canva', 'Framer',
+  'Slack', 'Teams', 'Zoom', 'Confluence', 'Notion', 'Asana', 'Trello', 'Monday.com',
+  'Postman', 'Swagger', 'Tableau', 'Power BI', 'Looker', 'Grafana', 'Splunk'
 ];
 
 const CERTIFICATIONS = [
@@ -44,6 +46,10 @@ const CERTIFICATIONS = [
 ];
 
 export function extractKeywords(text: string, customKeywords: string[] = []): Keyword[] {
+  if (!text || text.trim().length === 0) {
+    return [];
+  }
+
   const keywordMap = new Map<string, Keyword>();
   const sentences = text.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
 

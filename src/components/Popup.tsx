@@ -64,15 +64,22 @@ export default function Popup() {
     try {
       const response = await chrome.runtime.sendMessage({ action: 'extractJobPosting' });
       if (response.success) {
+        if (!response.text || response.text.trim().length < 50) {
+          setOutput('Warning: Extracted text is too short. Try manual selection for better results.');
+          setLoading(false);
+          setActiveAction('');
+          return;
+        }
         setJobText(response.text);
         const extractedKeywords = extractKeywords(response.text, customKeywords);
         setKeywords(extractedKeywords);
         setOutput(`Job posting extracted successfully!\n\nPreview:\n${response.text.slice(0, 500)}...`);
       } else {
-        setOutput('Error: Could not extract job posting from current page.');
+        setOutput('Error: Could not extract job posting from current page. Try manual selection instead.');
       }
     } catch (error) {
-      setOutput('Error: Make sure you are on a job posting page and try again.');
+      console.error('Extract error:', error);
+      setOutput('Error: Make sure you are on a job posting page and try again. Try manual selection if the issue persists.');
     } finally {
       setLoading(false);
       setActiveAction('');
@@ -117,6 +124,12 @@ export default function Popup() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const maxFileSize = 10 * 1024 * 1024;
+    if (file.size > maxFileSize) {
+      setOutput('Error: File is too large. Please upload a file smaller than 10MB.');
+      return;
+    }
+
     setLoading(true);
     setActiveAction('upload');
     setOutput(`Extracting text from ${file.name}...`);
@@ -128,15 +141,22 @@ export default function Popup() {
         throw new Error('No text could be extracted from the file. The PDF might be image-based or empty.');
       }
 
+      if (text.length < 100) {
+        throw new Error('Extracted text is too short. Please ensure your resume has readable content.');
+      }
+
       setResumeText(text);
       setOutput(`Resume uploaded successfully: ${file.name}\n\nExtracted ${text.length} characters\n\nPreview:\n${text.slice(0, 500)}...`);
     } catch (error) {
       console.error('Error reading resume:', error);
-      setOutput(`Error: ${error instanceof Error ? error.message : 'Failed to read resume file'}`);
+      setOutput(`Error: ${error instanceof Error ? error.message : 'Failed to read resume file. Please try a different format (PDF, DOCX, or TXT).'}`);
       setResumeText('');
     } finally {
       setLoading(false);
       setActiveAction('');
+      if (event.target) {
+        event.target.value = '';
+      }
     }
   };
 
@@ -148,13 +168,17 @@ export default function Popup() {
 
     setLoading(true);
     setActiveAction('summarize');
-    setOutput('');
+    setOutput('Analyzing job posting...');
 
     try {
       const summary = await summarizeJob(jobText);
+      if (!summary || summary.trim().length === 0) {
+        throw new Error('Failed to generate summary');
+      }
       setOutput(summary);
     } catch (error) {
-      setOutput('Error: Could not summarize job posting.');
+      console.error('Summarize error:', error);
+      setOutput('Error: Could not summarize job posting. Please try again.');
     } finally {
       setLoading(false);
       setActiveAction('');
@@ -173,13 +197,17 @@ export default function Popup() {
 
     setLoading(true);
     setActiveAction('tailor');
-    setOutput('');
+    setOutput('Tailoring your resume to match the job requirements...');
 
     try {
       const tailored = await tailorResume(resumeText, jobText);
+      if (!tailored || tailored.trim().length === 0) {
+        throw new Error('Failed to generate tailored resume');
+      }
       setOutput(tailored);
     } catch (error) {
-      setOutput('Error: Could not tailor resume.');
+      console.error('Tailor error:', error);
+      setOutput('Error: Could not tailor resume. Please try again.');
     } finally {
       setLoading(false);
       setActiveAction('');
@@ -198,13 +226,17 @@ export default function Popup() {
 
     setLoading(true);
     setActiveAction('coverLetter');
-    setOutput('');
+    setOutput('Generating personalized cover letter...');
 
     try {
       const coverLetter = await generateCoverLetter(resumeText, jobText);
+      if (!coverLetter || coverLetter.trim().length === 0) {
+        throw new Error('Failed to generate cover letter');
+      }
       setOutput(coverLetter);
     } catch (error) {
-      setOutput('Error: Could not generate cover letter.');
+      console.error('Cover letter error:', error);
+      setOutput('Error: Could not generate cover letter. Please try again.');
     } finally {
       setLoading(false);
       setActiveAction('');

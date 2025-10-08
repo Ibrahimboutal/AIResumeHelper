@@ -71,15 +71,15 @@ export default function Dashboard() {
     ? Math.round(((stats.total - stats.applied) / stats.total) * 100)
     : 0;
 
-  const StatCard = ({ icon, label, value, color, bgColor }: any) => (
-    <div className={`${bgColor} border border-${color}-200 rounded-lg p-4`}>
+  const StatCard = ({ icon, label, value, colorClass, bgClass, borderClass }: { icon: React.ReactNode, label: string, value: number, colorClass: string, bgClass: string, borderClass: string }) => (
+    <div className={`${bgClass} border ${borderClass} rounded-lg p-4`}>
       <div className="flex items-center justify-between mb-2">
-        <div className={`${color} p-2 rounded-lg`}>
+        <div className={`${bgClass} p-2 rounded-lg`}>
           {icon}
         </div>
-        <span className={`text-2xl font-bold text-${color}-700`}>{value}</span>
+        <span className={`text-2xl font-bold ${colorClass}`}>{value}</span>
       </div>
-      <p className={`text-xs font-medium text-${color}-700`}>{label}</p>
+      <p className={`text-xs font-medium ${colorClass}`}>{label}</p>
     </div>
   );
 
@@ -129,32 +129,36 @@ export default function Dashboard() {
             icon={<Briefcase className="w-4 h-4" />}
             label="Applied"
             value={stats.applied}
-            color="text-blue-700"
-            bgColor="bg-blue-50"
+            colorClass="text-blue-700"
+            bgClass="bg-blue-50"
+            borderClass="border-blue-200"
           />
 
           <StatCard
             icon={<Calendar className="w-4 h-4" />}
             label="Interview Stage"
             value={stats.interview}
-            color="text-amber-700"
-            bgColor="bg-amber-50"
+            colorClass="text-amber-700"
+            bgClass="bg-amber-50"
+            borderClass="border-amber-200"
           />
 
           <StatCard
             icon={<Award className="w-4 h-4" />}
             label="Offers Received"
             value={stats.offer}
-            color="text-emerald-700"
-            bgColor="bg-emerald-50"
+            colorClass="text-emerald-700"
+            bgClass="bg-emerald-50"
+            borderClass="border-emerald-200"
           />
 
           <StatCard
             icon={<Target className="w-4 h-4" />}
             label="Not Selected"
             value={stats.rejected}
-            color="text-rose-700"
-            bgColor="bg-rose-50"
+            colorClass="text-rose-700"
+            bgClass="bg-rose-50"
+            borderClass="border-rose-200"
           />
         </div>
       </div>
