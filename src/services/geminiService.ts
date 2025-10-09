@@ -1,66 +1,57 @@
-const GEMINI_API_KEY = import.meta.env.GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+import { createClient } from '@supabase/supabase-js';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// You need Supabase URL and anon/public key for your extension
 
-interface GeminiResponse {
-  candidates?: Array<{
-    content: {
-      parts: Array<{
-        text: string;
-      }>;
-    };
-  }>;
-  error?: {
-    message: string;
-  };
-}
+// Initialize Supabase client
+
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+const SUPABASE_FUNCTION_URL = "https://dvgonakqkimatitdqevz.functions.supabase.co/gemini";
 
 async function callGeminiAPI(prompt: string): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not configured');
-  }
-
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        }
-      })
+    // Get the current session (if user is logged in)
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    // Set headers
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    } else {
+      // Optional: fallback to anon key if you allow public access
+      headers["Authorization"] = `Bearer ${supabaseAnonKey}`;
+    }
+
+    const response = await fetch(SUPABASE_FUNCTION_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ prompt }),
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+      const text = await response.text();
+      throw new Error(`Supabase Function error: ${response.status} ${response.statusText} - ${text}`);
     }
 
-    const data: GeminiResponse = await response.json();
+    const data = (await response.json()) as { output?: string; error?: string };
 
-    if (data.error) {
-      throw new Error(`Gemini API error: ${data.error.message}`);
-    }
+    if (data.error) throw new Error(data.error);
+    if (!data.output) throw new Error("No output from Gemini function");
 
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No response from Gemini API');
-    }
-
-    return data.candidates[0].content.parts[0].text;
-  } catch (error) {
-    console.error('Error calling Gemini API:', error);
+    return data.output;
+  } catch (error: any) {
+    console.error("Error calling Gemini via Edge Function:", error);
     throw error;
   }
 }
 
+
+/**
+ * Extract keywords from a job posting
+ */
 export async function extractKeywordsWithAI(jobText: string): Promise<{
   technical: string[];
   soft: string[];
@@ -85,16 +76,16 @@ Only return valid JSON, no additional text.`;
   try {
     const response = await callGeminiAPI(prompt);
     const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-    return { technical: [], soft: [], tools: [], certifications: [] };
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : { technical: [], soft: [], tools: [], certifications: [] };
   } catch (error) {
-    console.error('Error extracting keywords with AI:', error);
+    console.error("Error extracting keywords with AI:", error);
     return { technical: [], soft: [], tools: [], certifications: [] };
   }
 }
 
+/**
+ * Summarize a job posting
+ */
 export async function summarizeJob(jobText: string): Promise<string> {
   const prompt = `Summarize the following job posting, highlighting the key requirements, responsibilities, and qualifications.
 
@@ -108,14 +99,12 @@ Provide a clear, structured summary with:
 
 Keep the summary concise but comprehensive.`;
 
-  try {
-    return await callGeminiAPI(prompt);
-  } catch (error) {
-    console.error('Error summarizing job:', error);
-    throw error;
-  }
+  return callGeminiAPI(prompt);
 }
 
+/**
+ * Tailor a resume to a job posting
+ */
 export async function tailorResume(resumeText: string, jobText: string): Promise<string> {
   const prompt = `You are an expert resume writer. Tailor the following resume to match the job posting below.
 
@@ -135,14 +124,12 @@ Instructions:
 
 Provide the tailored resume in a well-formatted text format.`;
 
-  try {
-    return await callGeminiAPI(prompt);
-  } catch (error) {
-    console.error('Error tailoring resume:', error);
-    throw error;
-  }
+  return callGeminiAPI(prompt);
 }
 
+/**
+ * Generate a cover letter from resume + job posting
+ */
 export async function generateCoverLetter(resumeText: string, jobText: string): Promise<string> {
   const prompt = `Write a professional cover letter based on the following resume and job posting.
 
@@ -163,14 +150,12 @@ Instructions:
 
 Provide the cover letter text.`;
 
-  try {
-    return await callGeminiAPI(prompt);
-  } catch (error) {
-    console.error('Error generating cover letter:', error);
-    throw error;
-  }
+  return callGeminiAPI(prompt);
 }
 
+/**
+ * Analyze how well a resume matches a job posting
+ */
 export async function analyzeResumeMatch(resumeText: string, jobText: string): Promise<{
   score: number;
   strengths: string[];
@@ -198,22 +183,16 @@ Only return valid JSON, no additional text.`;
   try {
     const response = await callGeminiAPI(prompt);
     const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-    return {
-      score: 0,
-      strengths: [],
-      weaknesses: [],
-      suggestions: []
-    };
+    return jsonMatch
+      ? JSON.parse(jsonMatch[0])
+      : { score: 0, strengths: [], weaknesses: [], suggestions: [] };
   } catch (error) {
-    console.error('Error analyzing resume match:', error);
+    console.error("Error analyzing resume match:", error);
     return {
       score: 0,
       strengths: [],
       weaknesses: [],
-      suggestions: ['Unable to analyze resume at this time. Please try again.']
+      suggestions: ["Unable to analyze resume at this time. Please try again."],
     };
   }
 }
