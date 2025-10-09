@@ -6,49 +6,119 @@ export interface Keyword {
   context?: string[];
 }
 
-const TECHNICAL_SKILLS = [
-  'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Go', 'Rust', 'Scala', 'Perl',
-  'React', 'Angular', 'Vue', 'Svelte', 'Next.js', 'Nuxt', 'Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Rails', 'FastAPI', 'Laravel',
-  'HTML', 'CSS', 'Sass', 'LESS', 'Tailwind', 'Bootstrap', 'Material-UI', 'Chakra UI', 'Ant Design',
-  'SQL', 'NoSQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'DynamoDB', 'Cassandra', 'Elasticsearch', 'Oracle', 'SQLite',
-  'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'CI/CD', 'Terraform', 'Ansible', 'CloudFormation', 'Helm',
-  'Git', 'GitHub', 'GitLab', 'Bitbucket', 'SVN', 'Mercurial',
-  'REST', 'GraphQL', 'API', 'Microservices', 'Serverless', 'WebSocket', 'gRPC', 'SOAP',
-  'Machine Learning', 'AI', 'Deep Learning', 'NLP', 'Computer Vision', 'Data Science', 'LLM', 'Neural Networks',
-  'TensorFlow', 'PyTorch', 'scikit-learn', 'Keras', 'OpenCV', 'Pandas', 'NumPy', 'Matplotlib',
-  'Agile', 'Scrum', 'Kanban', 'Jira', 'DevOps', 'Testing', 'Jest', 'Mocha', 'Pytest', 'Selenium', 'Cypress', 'Playwright',
-  'Redux', 'MobX', 'Vuex', 'RxJS', 'Webpack', 'Vite', 'Babel', 'ESLint', 'Prettier', 'Rollup', 'Parcel',
-  'OAuth', 'JWT', 'Authentication', 'Security', 'Encryption', 'HTTPS', 'SSL', 'TLS', 'SAML',
-  'Performance Optimization', 'Responsive Design', 'Accessibility', 'SEO', 'PWA', 'WCAG', 'ARIA'
-];
+let cachedKeywords: {
+  technical: string[];
+  soft: string[];
+  tools: string[];
+  certifications: string[];
+} | null = null;
 
-const SOFT_SKILLS = [
-  'Leadership', 'Communication', 'Teamwork', 'Problem Solving', 'Critical Thinking',
-  'Time Management', 'Collaboration', 'Adaptability', 'Creativity', 'Initiative',
-  'Analytical', 'Detail-Oriented', 'Self-Motivated', 'Organized', 'Flexible',
-  'Interpersonal', 'Presentation', 'Negotiation', 'Mentoring', 'Coaching',
-  'Strategic Thinking', 'Decision Making', 'Conflict Resolution', 'Emotional Intelligence',
-  'Accountability', 'Proactive', 'Reliability', 'Work Ethic', 'Customer Focus'
-];
+async function getAIExtractedKeywords(text: string): Promise<{
+  technical: string[];
+  soft: string[];
+  tools: string[];
+  certifications: string[];
+}> {
+  try {
+    const { extractKeywordsWithAI } = await import('../services/geminiService');
+    return await extractKeywordsWithAI(text);
+  } catch (error) {
+    console.error('Error extracting keywords with AI:', error);
+    return {
+      technical: [],
+      soft: [],
+      tools: [],
+      certifications: []
+    };
+  }
+}
 
-const TOOLS = [
-  'Visual Studio Code', 'VS Code', 'IntelliJ', 'Eclipse', 'Xcode', 'Sublime Text', 'Atom', 'Vim', 'Emacs',
-  'Figma', 'Sketch', 'Adobe XD', 'Photoshop', 'Illustrator', 'Canva', 'Framer',
-  'Slack', 'Teams', 'Zoom', 'Confluence', 'Notion', 'Asana', 'Trello', 'Monday.com',
-  'Postman', 'Swagger', 'Tableau', 'Power BI', 'Looker', 'Grafana', 'Splunk'
-];
-
-const CERTIFICATIONS = [
-  'AWS Certified', 'Azure Certified', 'Google Cloud Certified',
-  'PMP', 'Scrum Master', 'CSM', 'CSPO',
-  'CompTIA', 'CISSP', 'Security+',
-  'CPA', 'CFA', 'MBA', 'PhD', 'Master\'s', 'Bachelor\'s'
-];
-
-export function extractKeywords(text: string, customKeywords: string[] = []): Keyword[] {
+export async function extractKeywords(text: string, customKeywords: string[] = []): Promise<Keyword[]> {
   if (!text || text.trim().length === 0) {
     return [];
   }
+
+  if (!cachedKeywords) {
+    cachedKeywords = await getAIExtractedKeywords(text);
+  }
+
+  const keywordMap = new Map<string, Keyword>();
+  const sentences = text.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+
+  const processKeywords = (keywords: string[], category: Keyword['category']) => {
+    keywords.forEach(keyword => {
+      const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+      const matches = text.match(regex);
+      if (matches) {
+        const lowerKeyword = keyword.toLowerCase();
+        const context: string[] = [];
+
+        sentences.forEach(sentence => {
+          if (new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi').test(sentence)) {
+            context.push(sentence.trim().slice(0, 100));
+          }
+        });
+
+        if (keywordMap.has(lowerKeyword)) {
+          const existing = keywordMap.get(lowerKeyword)!;
+          existing.count += matches.length;
+          existing.context = [...new Set([...(existing.context || []), ...context.slice(0, 3)])];
+        } else {
+          const importance = calculateImportance(keyword, text, category);
+          keywordMap.set(lowerKeyword, {
+            text: keyword,
+            category,
+            count: matches.length,
+            importance,
+            context: context.slice(0, 3)
+          });
+        }
+      }
+    });
+  };
+
+  processKeywords(cachedKeywords.technical, 'technical');
+  processKeywords(cachedKeywords.soft, 'soft');
+  processKeywords(cachedKeywords.tools, 'tool');
+  processKeywords(cachedKeywords.certifications, 'certification');
+  processKeywords(customKeywords, 'custom');
+
+  const keywords = Array.from(keywordMap.values());
+  return keywords.sort((a, b) => {
+    const importanceDiff = (b.importance || 0) - (a.importance || 0);
+    if (importanceDiff !== 0) return importanceDiff;
+    return b.count - a.count;
+  });
+}
+
+export function extractKeywordsSync(text: string, customKeywords: string[] = []): Keyword[] {
+  if (!text || text.trim().length === 0) {
+    return [];
+  }
+
+  const TECHNICAL_SKILLS = [
+    'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Go', 'Rust',
+    'React', 'Angular', 'Vue', 'Node.js', 'Express', 'Django', 'Flask', 'Spring',
+    'HTML', 'CSS', 'Tailwind', 'Bootstrap',
+    'SQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis',
+    'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes',
+    'Git', 'GitHub', 'CI/CD',
+    'REST', 'API', 'GraphQL'
+  ];
+
+  const SOFT_SKILLS = [
+    'Leadership', 'Communication', 'Teamwork', 'Problem Solving',
+    'Time Management', 'Collaboration', 'Adaptability'
+  ];
+
+  const TOOLS = [
+    'VS Code', 'IntelliJ', 'Figma', 'Slack', 'Jira', 'Postman'
+  ];
+
+  const CERTIFICATIONS = [
+    'AWS Certified', 'Azure Certified', 'PMP', 'Scrum Master',
+    'Bachelor\'s', 'Master\'s', 'MBA', 'PhD'
+  ];
 
   const keywordMap = new Map<string, Keyword>();
   const sentences = text.split(/[.!?\n]+/).filter(s => s.trim().length > 0);

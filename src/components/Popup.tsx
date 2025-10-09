@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Save, Briefcase, MousePointerClick, LayoutGrid, Library, Settings, LogOut, User, PartyPopper } from 'lucide-react';
 import { summarizeJob, tailorResume, generateCoverLetter } from '../utils/aiMocks';
-import { extractKeywords, type Keyword } from '../utils/keywordExtractor';
+import { extractKeywordsSync, type Keyword } from '../utils/keywordExtractor';
 import { analyzeResume, type ResumeAnalysis } from '../utils/resumeAnalyzer';
 import { extractTextFromFile } from '../utils/pdfExtractor';
 import KeywordSidebar from './KeywordSidebar';
@@ -71,7 +71,7 @@ export default function Popup() {
           return;
         }
         setJobText(response.text);
-        const extractedKeywords = extractKeywords(response.text, customKeywords);
+        const extractedKeywords = extractKeywordsSync(response.text, customKeywords);
         setKeywords(extractedKeywords);
         setOutput(`Job posting extracted successfully!\n\nPreview:\n${response.text.slice(0, 500)}...`);
       } else {
@@ -98,7 +98,7 @@ export default function Popup() {
       const messageListener = (message: any) => {
         if (message.action === 'manualSelectionComplete') {
           setJobText(message.text);
-          const extractedKeywords = extractKeywords(message.text, customKeywords);
+          const extractedKeywords = extractKeywordsSync(message.text, customKeywords);
           setKeywords(extractedKeywords);
           setOutput(`Job posting extracted via manual selection!\n\nPreview:\n${message.text.slice(0, 500)}...`);
           setLoading(false);

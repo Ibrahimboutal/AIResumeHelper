@@ -1,4 +1,4 @@
-import { extractKeywords, extractYearsOfExperience, extractEducationRequirements, type Keyword } from './keywordExtractor';
+import { extractKeywordsSync, extractYearsOfExperience, extractEducationRequirements, type Keyword } from './keywordExtractor';
 
 export interface ResumeAnalysis {
   score: number;
@@ -30,8 +30,8 @@ export function analyzeResume(resumeText: string, jobText: string, customKeyword
     };
   }
 
-  const jobKeywords = extractKeywords(jobText, customKeywords);
-  const resumeKeywords = extractKeywords(resumeText, customKeywords);
+  const jobKeywords = extractKeywordsSync(jobText, customKeywords);
+  const resumeKeywords = extractKeywordsSync(resumeText, customKeywords);
 
   const resumeKeywordSet = new Set(
     resumeKeywords.map(k => k.text.toLowerCase())
