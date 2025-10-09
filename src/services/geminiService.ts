@@ -8,7 +8,8 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const SUPABASE_FUNCTION_URL = "https://dvgonakqkimatitdqevz.functions.supabase.co/gemini";
+const functionUrl = supabaseUrl.replace('.supabase.co', '.functions.supabase.co');
+const SUPABASE_FUNCTION_URL = `${functionUrl}/gemini`;
 
 async function callGeminiAPI(prompt: string): Promise<string> {
   try {
