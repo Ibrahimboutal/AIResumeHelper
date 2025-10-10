@@ -12,13 +12,13 @@ import ResumeVersions from './ResumeVersions';
 import AuthModal from './AuthModal';
 import Dashboard from './Dashboard';
 import { useAuth } from '../hooks/useAuth';
-import { saveResume, getResumes } from '../services/resumeService';
+import { saveResume } from '../services/resumeService';
 import { saveJobApplication } from '../services/applicationService';
 
 type Tab = 'analysis' | 'data' | 'settings';
 
 export default function Popup() {
-  const { user, loading: authLoading, signOut, isAuthenticated } = useAuth();
+  const { user, signOut, isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('analysis');
   const [jobText, setJobText] = useState('');
@@ -62,18 +62,21 @@ export default function Popup() {
     setOutput('');
 
     try {
+      if (!chrome?.runtime?.sendMessage) {
+        throw new Error('Chrome extension API not available');
+      }
+
       const response = await chrome.runtime.sendMessage({ action: 'extractJobPosting' });
-      if (response.success) {
-        if (!response.text || response.text.trim().length < 50) {
+      if (response?.success && response.text) {
+        const trimmedText = response.text.trim();
+        if (trimmedText.length < 50) {
           setOutput('Warning: Extracted text is too short. Try manual selection for better results.');
-          setLoading(false);
-          setActiveAction('');
           return;
         }
-        setJobText(response.text);
-        const extractedKeywords = extractKeywordsSync(response.text, customKeywords);
+        setJobText(trimmedText);
+        const extractedKeywords = extractKeywordsSync(trimmedText, customKeywords);
         setKeywords(extractedKeywords);
-        setOutput(`Job posting extracted successfully!\n\nPreview:\n${response.text.slice(0, 500)}...`);
+        setOutput(`Job posting extracted successfully!\n\nPreview:\n${trimmedText.slice(0, 500)}...`);
       } else {
         setOutput('Error: Could not extract job posting from current page. Try manual selection instead.');
       }
@@ -127,6 +130,14 @@ export default function Popup() {
     const maxFileSize = 10 * 1024 * 1024;
     if (file.size > maxFileSize) {
       setOutput('Error: File is too large. Please upload a file smaller than 10MB.');
+      event.target.value = '';
+      return;
+    }
+
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|docx|txt)$/i)) {
+      setOutput('Error: Invalid file type. Please upload a PDF, DOCX, or TXT file.');
+      event.target.value = '';
       return;
     }
 
@@ -138,18 +149,19 @@ export default function Popup() {
       const text = await extractTextFromFile(file);
 
       if (!text || text.trim().length === 0) {
-        throw new Error('No text could be extracted from the file. The PDF might be image-based or empty.');
+        throw new Error('No text could be extracted from the file. The file might be image-based or empty.');
       }
 
-      if (text.length < 100) {
+      const trimmedText = text.trim();
+      if (trimmedText.length < 100) {
         throw new Error('Extracted text is too short. Please ensure your resume has readable content.');
       }
 
-      setResumeText(text);
-      setOutput(`Resume uploaded successfully: ${file.name}\n\nExtracted ${text.length} characters\n\nPreview:\n${text.slice(0, 500)}...`);
+      setResumeText(trimmedText);
+      setOutput(`Resume uploaded successfully: ${file.name}\n\nExtracted ${trimmedText.length} characters\n\nPreview:\n${trimmedText.slice(0, 500)}...`);
     } catch (error) {
       console.error('Error reading resume:', error);
-      setOutput(`Error: ${error instanceof Error ? error.message : 'Failed to read resume file. Please try a different format (PDF, DOCX, or TXT).'}`);
+      setOutput(`Error: ${error instanceof Error ? error.message : 'Failed to read resume file. Please try a different format (PDF, DOCX, or TXT).'}`)
       setResumeText('');
     } finally {
       setLoading(false);
@@ -244,7 +256,7 @@ export default function Popup() {
   };
 
   const trackApplication = async () => {
-    if (!jobText) {
+    if (!jobText || jobText.trim().length === 0) {
       setOutput('Please extract a job posting first.');
       return;
     }
@@ -258,19 +270,20 @@ export default function Popup() {
     let company = 'Unknown Company';
     const titleMatch = jobText.match(/job title:?\s*(.*)/i);
     const companyMatch = jobText.match(/company:?\s*(.*)/i);
-    if (titleMatch && titleMatch[1]) jobTitle = titleMatch[1].split('\n')[0];
-    if (companyMatch && companyMatch[1]) company = companyMatch[1].split('\n')[0];
+    if (titleMatch?.[1]) jobTitle = titleMatch[1].split('\n')[0].trim();
+    if (companyMatch?.[1]) company = companyMatch[1].split('\n')[0].trim();
 
     try {
       await saveJobApplication(jobTitle, company, undefined, jobText);
       setOutput(`Application tracked successfully!\n\nJob: ${jobTitle}\nCompany: ${company}\nDate: ${new Date().toLocaleDateString()}`);
     } catch (error) {
+      console.error('Error tracking application:', error);
       setOutput('Error: Could not save application. Please try again.');
     }
   };
 
   const handleSaveResume = async () => {
-    if (!resumeText) {
+    if (!resumeText || resumeText.trim().length === 0) {
       setOutput('Please upload a resume first.');
       return;
     }
@@ -281,28 +294,45 @@ export default function Popup() {
     }
 
     const resumeName = prompt('Enter a name for this resume:');
-    if (!resumeName) return;
+    if (!resumeName || resumeName.trim().length === 0) return;
+
+    const trimmedName = resumeName.trim();
+    if (trimmedName.length > 100) {
+      setOutput('Error: Resume name is too long. Please use a shorter name.');
+      return;
+    }
 
     try {
-      await saveResume(resumeName, resumeText);
-      setOutput(`Resume "${resumeName}" saved successfully!`);
+      await saveResume(trimmedName, resumeText);
+      setOutput(`Resume "${trimmedName}" saved successfully!`);
     } catch (error) {
+      console.error('Error saving resume:', error);
       setOutput('Error: Could not save resume. Please try again.');
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(output);
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(output);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+    }
   };
 
   const downloadAsTxt = () => {
-    const blob = new Blob([output], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'ai-generated-content.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const timestamp = new Date().toISOString().split('T')[0];
+      a.download = `resume-content-${timestamp}.txt`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      setOutput('Error: Could not download file. Please try again.');
+    }
   };
     
   useEffect(() => {

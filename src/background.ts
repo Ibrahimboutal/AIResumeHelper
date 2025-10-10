@@ -2,7 +2,7 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log('Smart Resume Assistant installed');
 });
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.action === 'extractJobPosting') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {

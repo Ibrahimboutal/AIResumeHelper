@@ -92,65 +92,84 @@ export async function extractKeywords(text: string, customKeywords: string[] = [
 }
 
 export function extractKeywordsSync(text: string, customKeywords: string[] = []): Keyword[] {
-  if (!text || text.trim().length === 0) {
+  if (!text?.trim()) {
+    return [];
+  }
+
+  const normalizedText = text.trim();
+  if (normalizedText.length === 0) {
     return [];
   }
 
   const TECHNICAL_SKILLS = [
-    'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Go', 'Rust',
-    'React', 'Angular', 'Vue', 'Node.js', 'Express', 'Django', 'Flask', 'Spring',
-    'HTML', 'CSS', 'Tailwind', 'Bootstrap',
-    'SQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis',
-    'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes',
-    'Git', 'GitHub', 'CI/CD',
-    'REST', 'API', 'GraphQL'
+    'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Go', 'Rust', 'Scala',
+    'React', 'Angular', 'Vue', 'Svelte', 'Next.js', 'Node.js', 'Express', 'Django', 'Flask', 'Spring', 'FastAPI',
+    'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'Sass', 'SCSS',
+    'SQL', 'NoSQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Firebase', 'Supabase',
+    'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Terraform',
+    'Git', 'GitHub', 'GitLab', 'CI/CD', 'Jenkins',
+    'REST', 'API', 'GraphQL', 'gRPC', 'WebSocket',
+    'Testing', 'Jest', 'Mocha', 'Cypress', 'Selenium'
   ];
 
   const SOFT_SKILLS = [
-    'Leadership', 'Communication', 'Teamwork', 'Problem Solving',
-    'Time Management', 'Collaboration', 'Adaptability'
+    'Leadership', 'Communication', 'Teamwork', 'Problem Solving', 'Critical Thinking',
+    'Time Management', 'Collaboration', 'Adaptability', 'Creativity', 'Attention to Detail',
+    'Organization', 'Project Management', 'Analytical', 'Strategic', 'Initiative'
   ];
 
   const TOOLS = [
-    'VS Code', 'IntelliJ', 'Figma', 'Slack', 'Jira', 'Postman'
+    'VS Code', 'Visual Studio', 'IntelliJ', 'Eclipse', 'Figma', 'Sketch', 'Adobe XD',
+    'Slack', 'Jira', 'Confluence', 'Trello', 'Asana', 'Postman', 'Insomnia'
   ];
 
   const CERTIFICATIONS = [
-    'AWS Certified', 'Azure Certified', 'PMP', 'Scrum Master',
-    'Bachelor\'s', 'Master\'s', 'MBA', 'PhD'
+    'AWS Certified', 'Azure Certified', 'GCP Certified', 'PMP', 'Scrum Master', 'CSM',
+    'Bachelor\'s', 'Master\'s', 'MBA', 'PhD', 'Doctorate', 'Associate Degree'
   ];
 
   const keywordMap = new Map<string, Keyword>();
-  const sentences = text.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+  const sentences = normalizedText.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
 
   const processKeywords = (keywords: string[], category: Keyword['category']) => {
     keywords.forEach(keyword => {
-      const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
-      const matches = text.match(regex);
-      if (matches) {
-        const lowerKeyword = keyword.toLowerCase();
-        const context: string[] = [];
+      if (!keyword || keyword.trim().length === 0) return;
 
-        sentences.forEach(sentence => {
-          if (new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi').test(sentence)) {
-            context.push(sentence.trim().slice(0, 100));
-          }
-        });
+      try {
+        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'gi');
+        const matches = normalizedText.match(regex);
 
-        if (keywordMap.has(lowerKeyword)) {
-          const existing = keywordMap.get(lowerKeyword)!;
-          existing.count += matches.length;
-          existing.context = [...new Set([...(existing.context || []), ...context.slice(0, 3)])];
-        } else {
-          const importance = calculateImportance(keyword, text, category);
-          keywordMap.set(lowerKeyword, {
-            text: keyword,
-            category,
-            count: matches.length,
-            importance,
-            context: context.slice(0, 3)
+        if (matches && matches.length > 0) {
+          const lowerKeyword = keyword.toLowerCase();
+          const context: string[] = [];
+
+          sentences.forEach(sentence => {
+            if (sentence && new RegExp(`\\b${escapedKeyword}\\b`, 'gi').test(sentence)) {
+              const trimmed = sentence.trim();
+              if (trimmed.length > 0) {
+                context.push(trimmed.slice(0, 100));
+              }
+            }
           });
+
+          if (keywordMap.has(lowerKeyword)) {
+            const existing = keywordMap.get(lowerKeyword)!;
+            existing.count += matches.length;
+            existing.context = [...new Set([...(existing.context || []), ...context.slice(0, 3)])];
+          } else {
+            const importance = calculateImportance(keyword, normalizedText, category);
+            keywordMap.set(lowerKeyword, {
+              text: keyword,
+              category,
+              count: matches.length,
+              importance,
+              context: context.slice(0, 3)
+            });
+          }
         }
+      } catch (error) {
+        console.warn(`Error processing keyword "${keyword}":`, error);
       }
     });
   };
@@ -170,24 +189,35 @@ export function extractKeywordsSync(text: string, customKeywords: string[] = [])
 }
 
 function calculateImportance(keyword: string, text: string, category: string): number {
-  let score = 0;
+  if (!keyword || !text) return 1;
 
-  if (new RegExp(`required.*${keyword}`, 'gi').test(text)) score += 3;
-  if (new RegExp(`must have.*${keyword}`, 'gi').test(text)) score += 3;
-  if (new RegExp(`${keyword}.*experience`, 'gi').test(text)) score += 2;
-  if (new RegExp(`proficient.*${keyword}`, 'gi').test(text)) score += 2;
-  if (new RegExp(`expert.*${keyword}`, 'gi').test(text)) score += 2;
+  let score = 1;
 
-  if (category === 'technical') score += 1;
-  if (category === 'certification') score += 1.5;
+  try {
+    const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  const lines = text.split('\n');
-  const firstThirdLines = lines.slice(0, Math.floor(lines.length / 3)).join(' ');
-  if (new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi').test(firstThirdLines)) {
-    score += 1;
+    if (new RegExp(`required.*${escapedKeyword}`, 'gi').test(text)) score += 3;
+    if (new RegExp(`must have.*${escapedKeyword}`, 'gi').test(text)) score += 3;
+    if (new RegExp(`essential.*${escapedKeyword}`, 'gi').test(text)) score += 2.5;
+    if (new RegExp(`${escapedKeyword}.*experience`, 'gi').test(text)) score += 2;
+    if (new RegExp(`proficient.*${escapedKeyword}`, 'gi').test(text)) score += 2;
+    if (new RegExp(`expert.*${escapedKeyword}`, 'gi').test(text)) score += 2;
+    if (new RegExp(`strong.*${escapedKeyword}`, 'gi').test(text)) score += 1.5;
+
+    if (category === 'technical') score += 1;
+    if (category === 'certification') score += 1.5;
+    if (category === 'custom') score += 0.5;
+
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    const firstThirdLines = lines.slice(0, Math.max(Math.floor(lines.length / 3), 1)).join(' ');
+    if (new RegExp(`\\b${escapedKeyword}\\b`, 'gi').test(firstThirdLines)) {
+      score += 1;
+    }
+  } catch (error) {
+    console.warn(`Error calculating importance for "${keyword}":`, error);
   }
 
-  return score;
+  return Math.max(score, 0.1);
 }
 
 export function categorizeKeywords(keywords: Keyword[]): Record<string, Keyword[]> {
@@ -201,35 +231,55 @@ export function categorizeKeywords(keywords: Keyword[]): Record<string, Keyword[
 }
 
 export function extractYearsOfExperience(text: string): number | null {
+  if (!text?.trim()) return null;
+
   const patterns = [
     /(\d+)\+?\s*years?\s+(?:of\s+)?experience/gi,
     /experience\s+(?:of\s+)?(\d+)\+?\s*years?/gi,
     /(\d+)\+?\s*yrs?\s+experience/gi,
+    /(\d+)\+?\s*year\s+experience/gi,
   ];
 
+  const numbers: number[] = [];
+
   for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      const numbers = match.map(m => parseInt(m.match(/\d+/)?.[0] || '0'));
-      return Math.max(...numbers);
+    const matches = text.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        const numMatch = match.match(/\d+/);
+        if (numMatch) {
+          const num = parseInt(numMatch[0], 10);
+          if (!isNaN(num) && num >= 0 && num <= 50) {
+            numbers.push(num);
+          }
+        }
+      });
     }
   }
-  return null;
+
+  return numbers.length > 0 ? Math.max(...numbers) : null;
 }
 
 export function extractEducationRequirements(text: string): string[] {
+  if (!text?.trim()) return [];
+
   const requirements: string[] = [];
-  const eduKeywords = ['Bachelor', 'Master', 'PhD', 'Doctorate', 'Associate', 'MBA', 'degree'];
+  const eduKeywords = ['Bachelor', 'Master', 'PhD', 'Doctorate', 'Associate', 'MBA', 'degree', 'B.S.', 'M.S.', 'B.A.', 'M.A.'];
 
   eduKeywords.forEach(keyword => {
-    const regex = new RegExp(`[^.]*${keyword}[^.]*`, 'gi');
-    const matches = text.match(regex);
-    if (matches) {
-      requirements.push(...matches.map(m => m.trim()));
+    try {
+      const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`[^.]*${escapedKeyword}[^.]*`, 'gi');
+      const matches = text.match(regex);
+      if (matches) {
+        requirements.push(...matches.map(m => m.trim()).filter(r => r.length > 0 && r.length < 200));
+      }
+    } catch (error) {
+      console.warn(`Error extracting education for "${keyword}":`, error);
     }
   });
 
-  return [...new Set(requirements)].slice(0, 3);
+  return [...new Set(requirements)].filter(r => r.length > 0).slice(0, 5);
 }
 
 export function extractSalaryRange(text: string): { min?: number; max?: number; currency: string } | null {

@@ -21,9 +21,21 @@ export async function saveJobApplication(
   jobDescription?: string,
   notes?: string
 ): Promise<JobApplication | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  if (!jobTitle?.trim() || !company?.trim()) {
+    throw new Error('Job title and company are required');
+  }
 
-  if (!user) {
+  if (jobTitle.length > 200) {
+    throw new Error('Job title is too long (max 200 characters)');
+  }
+
+  if (company.length > 200) {
+    throw new Error('Company name is too long (max 200 characters)');
+  }
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
     throw new Error('User not authenticated');
   }
 
@@ -31,29 +43,29 @@ export async function saveJobApplication(
     .from('job_applications')
     .insert({
       user_id: user.id,
-      job_title: jobTitle,
-      company,
-      job_url: jobUrl || null,
-      job_description: jobDescription || null,
-      notes: notes || null,
+      job_title: jobTitle.trim(),
+      company: company.trim(),
+      job_url: jobUrl?.trim() || null,
+      job_description: jobDescription?.trim() || null,
+      notes: notes?.trim() || null,
       status: 'applied',
       applied_date: new Date().toISOString().split('T')[0],
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error saving job application:', error);
-    throw error;
+    throw new Error(`Failed to save application: ${error.message}`);
   }
 
   return data;
 }
 
 export async function getJobApplications(): Promise<JobApplication[]> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (userError || !user) {
     throw new Error('User not authenticated');
   }
 
@@ -61,11 +73,12 @@ export async function getJobApplications(): Promise<JobApplication[]> {
     .from('job_applications')
     .select('*')
     .eq('user_id', user.id)
-    .order('applied_date', { ascending: false });
+    .order('applied_date', { ascending: false })
+    .limit(500);
 
   if (error) {
     console.error('Error fetching job applications:', error);
-    throw error;
+    throw new Error(`Failed to fetch applications: ${error.message}`);
   }
 
   return data || [];
@@ -82,25 +95,53 @@ export async function updateJobApplication(
     notes?: string;
   }
 ): Promise<JobApplication | null> {
+  if (!id?.trim()) {
+    throw new Error('Application ID is required');
+  }
+
+  if (updates.job_title && updates.job_title.length > 200) {
+    throw new Error('Job title is too long (max 200 characters)');
+  }
+
+  if (updates.company && updates.company.length > 200) {
+    throw new Error('Company name is too long (max 200 characters)');
+  }
+
+  const trimmedUpdates: any = {};
+  if (updates.job_title) trimmedUpdates.job_title = updates.job_title.trim();
+  if (updates.company) trimmedUpdates.company = updates.company.trim();
+  if (updates.job_url) trimmedUpdates.job_url = updates.job_url.trim();
+  if (updates.job_description) trimmedUpdates.job_description = updates.job_description.trim();
+  if (updates.notes) trimmedUpdates.notes = updates.notes.trim();
+  if (updates.status) trimmedUpdates.status = updates.status;
+
   const { data, error } = await supabase
     .from('job_applications')
     .update({
-      ...updates,
+      ...trimmedUpdates,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error updating job application:', error);
-    throw error;
+    throw new Error(`Failed to update application: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Application not found or you do not have permission to update it');
   }
 
   return data;
 }
 
 export async function deleteJobApplication(id: string): Promise<void> {
+  if (!id?.trim()) {
+    throw new Error('Application ID is required');
+  }
+
   const { error } = await supabase
     .from('job_applications')
     .delete()
@@ -108,7 +149,7 @@ export async function deleteJobApplication(id: string): Promise<void> {
 
   if (error) {
     console.error('Error deleting job application:', error);
-    throw error;
+    throw new Error(`Failed to delete application: ${error.message}`);
   }
 }
 
@@ -119,13 +160,22 @@ export async function getApplicationStats(): Promise<{
   offer: number;
   rejected: number;
 }> {
-  const applications = await getJobApplications();
+  try {
+    const applications = await getJobApplications();
 
-  return {
-    total: applications.length,
-    applied: applications.filter(app => app.status === 'applied').length,
-    interview: applications.filter(app => app.status === 'interview').length,
-    offer: applications.filter(app => app.status === 'offer').length,
-    rejected: applications.filter(app => app.status === 'rejected').length,
-  };
+    if (!Array.isArray(applications)) {
+      return { total: 0, applied: 0, interview: 0, offer: 0, rejected: 0 };
+    }
+
+    return {
+      total: applications.length,
+      applied: applications.filter(app => app?.status === 'applied').length,
+      interview: applications.filter(app => app?.status === 'interview').length,
+      offer: applications.filter(app => app?.status === 'offer').length,
+      rejected: applications.filter(app => app?.status === 'rejected').length,
+    };
+  } catch (error) {
+    console.error('Error getting application stats:', error);
+    return { total: 0, applied: 0, interview: 0, offer: 0, rejected: 0 };
+  }
 }

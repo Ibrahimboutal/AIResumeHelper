@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Trash2, Edit2, ExternalLink, ChevronDown, ChevronUp, Filter, Calendar, Building2 } from 'lucide-react';
+import { Briefcase, Trash2, ExternalLink, ChevronDown, ChevronUp, Calendar, Building2 } from 'lucide-react';
 import { getJobApplications, deleteJobApplication, updateJobApplication, type JobApplication } from '../services/applicationService';
 import { useAuth } from '../hooks/useAuth';
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Briefcase, FileText, Target, Calendar, Award } from 'lucide-react';
+import { BarChart3, TrendingUp, Briefcase, Target, Calendar, Award } from 'lucide-react';
 import { getApplicationStats } from '../services/applicationService';
 import { getResumes } from '../services/resumeService';
 import { useAuth } from '../hooks/useAuth';
@@ -14,10 +14,12 @@ export default function Dashboard() {
     rejected: 0,
   });
   const [resumeCount, setResumeCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    if (isAuthenticated) {
+      loadStats();
+    }
   }, [isAuthenticated]);
 
   const loadStats = async () => {
@@ -26,16 +28,23 @@ export default function Dashboard() {
       return;
     }
 
+    setLoading(true);
     try {
       const [applicationStats, resumes] = await Promise.all([
         getApplicationStats(),
         getResumes(),
       ]);
 
-      setStats(applicationStats);
-      setResumeCount(resumes.length);
+      if (applicationStats) {
+        setStats(applicationStats);
+      }
+      if (Array.isArray(resumes)) {
+        setResumeCount(resumes.length);
+      }
     } catch (error) {
       console.error('Error loading stats:', error);
+      setStats({ total: 0, applied: 0, interview: 0, offer: 0, rejected: 0 });
+      setResumeCount(0);
     } finally {
       setLoading(false);
     }
@@ -55,22 +64,36 @@ export default function Dashboard() {
     );
   }
 
+  // --- Rate Calculations (These were already safe) ---
   const successRate = stats.total > 0
-    ? Math.round(((stats.interview + stats.offer) / stats.total) * 100)
+    ? Math.min(Math.round(((stats.interview + stats.offer) / stats.total) * 100), 100)
     : 0;
 
   const offerRate = stats.total > 0
-    ? Math.round((stats.offer / stats.total) * 100)
+    ? Math.min(Math.round((stats.offer / stats.total) * 100), 100)
     : 0;
 
   const interviewRate = stats.total > 0
-    ? Math.round((stats.interview / stats.total) * 100)
+    ? Math.min(Math.round((stats.interview / stats.total) * 100), 100)
     : 0;
 
   const responseRate = stats.total > 0
-    ? Math.round(((stats.total - stats.applied) / stats.total) * 100)
+    ? Math.min(Math.round(((stats.total - stats.applied) / stats.total) * 100), 100)
     : 0;
 
+  // --- Progress Calculations (FIX for ARIA issue) ---
+  const appliedProgress = stats.total > 0
+    ? Math.min((stats.applied / stats.total) * 100, 100)
+    : 0;
+
+  const interviewProgress = stats.total > 0
+    ? Math.min((stats.interview / stats.total) * 100, 100)
+    : 0;
+
+  const offerProgress = stats.total > 0
+    ? Math.min((stats.offer / stats.total) * 100, 100)
+    : 0;
+    
   const StatCard = ({ icon, label, value, colorClass, bgClass, borderClass }: { icon: React.ReactNode, label: string, value: number, colorClass: string, bgClass: string, borderClass: string }) => (
     <div className={`${bgClass} border ${borderClass} rounded-lg p-4`}>
       <div className="flex items-center justify-between mb-2">
@@ -109,7 +132,9 @@ export default function Dashboard() {
             <p className="text-blue-100 text-xs mb-1">Success Rate</p>
             <div className="flex items-baseline gap-1">
               <p className="text-3xl font-bold">{successRate}%</p>
-              {successRate >= 30 && <span className="text-emerald-300 text-xs">↑</span>}
+              {successRate >= 30 && (
+                <span className="text-emerald-300 text-xs" aria-label="Above average">↑</span>
+              )}
             </div>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
@@ -170,41 +195,62 @@ export default function Dashboard() {
           </h3>
 
           <div className="space-y-3">
+            {/* Applied Progress Bar */}
             <div>
               <div className="flex justify-between text-xs text-slate-600 mb-1">
                 <span>Applied</span>
-                <span className="font-semibold">{stats.applied} ({Math.round((stats.applied / stats.total) * 100)}%)</span>
+                <span className="font-semibold">{stats.applied} ({Math.round(appliedProgress)}%)</span>
               </div>
               <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-blue-600 transition-all duration-500"
-                  style={{ width: `${(stats.applied / stats.total) * 100}%` }}
+                  style={{ width: `${appliedProgress}%` }}
+                  role="progressbar"
+                  // FIX: Using the safe, pre-calculated number
+                  aria-valuenow={appliedProgress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  title='Applied Progress'
                 />
               </div>
             </div>
 
+            {/* Interview Progress Bar */}
             <div>
               <div className="flex justify-between text-xs text-slate-600 mb-1">
                 <span>Interview</span>
-                <span className="font-semibold">{stats.interview} ({Math.round((stats.interview / stats.total) * 100)}%)</span>
+                <span className="font-semibold">{stats.interview} ({Math.round(interviewProgress)}%)</span>
               </div>
               <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-600 transition-all duration-500"
-                  style={{ width: `${(stats.interview / stats.total) * 100}%` }}
+                  style={{ width: `${interviewProgress}%` }}
+                  role="progressbar"
+                  // FIX: Using the safe, pre-calculated number
+                  aria-valuenow={interviewProgress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  title='Interview Progress'
                 />
               </div>
             </div>
 
+            {/* Offers Progress Bar */}
             <div>
               <div className="flex justify-between text-xs text-slate-600 mb-1">
                 <span>Offers</span>
-                <span className="font-semibold">{stats.offer} ({Math.round((stats.offer / stats.total) * 100)}%)</span>
+                <span className="font-semibold">{stats.offer} ({Math.round(offerProgress)}%)</span>
               </div>
               <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-emerald-600 transition-all duration-500"
-                  style={{ width: `${(stats.offer / stats.total) * 100}%` }}
+                  style={{ width: `${offerProgress}%` }}
+                  role="progressbar"
+                  // FIX: Using the safe, pre-calculated number
+                  aria-valuenow={offerProgress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  title='Offer Progress'
                 />
               </div>
             </div>

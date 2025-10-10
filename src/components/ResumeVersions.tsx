@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, FileText, Trash2, Download, Eye, Clock } from 'lucide-react';
+import { FileText, Trash2, Download, Eye, Clock } from 'lucide-react';
 import { getResumes, deleteResume, type Resume } from '../services/resumeService';
 import { useAuth } from '../hooks/useAuth';
 
@@ -8,7 +8,7 @@ interface ResumeVersionsProps {
   setResumeText: (text: string) => void;
 }
 
-export default function ResumeVersions({ resumeText, setResumeText }: ResumeVersionsProps) {
+export default function ResumeVersions({ setResumeText }: ResumeVersionsProps) {
   const { isAuthenticated } = useAuth();
   const [versions, setVersions] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);

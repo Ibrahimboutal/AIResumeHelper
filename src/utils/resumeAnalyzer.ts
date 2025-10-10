@@ -20,12 +20,22 @@ export interface DetailedAnalysis {
 }
 
 export function analyzeResume(resumeText: string, jobText: string, customKeywords: string[] = []): ResumeAnalysis {
-  if (!resumeText || !jobText) {
+  if (!resumeText?.trim() || !jobText?.trim()) {
     return {
       score: 0,
       matchedKeywords: [],
       missingKeywords: [],
       suggestions: ['Please provide both resume and job posting text.'],
+      detailedAnalysis: undefined
+    };
+  }
+
+  if (resumeText.trim().length < 100) {
+    return {
+      score: 0,
+      matchedKeywords: [],
+      missingKeywords: [],
+      suggestions: ['Resume text is too short to analyze. Please upload a complete resume.'],
       detailedAnalysis: undefined
     };
   }
@@ -75,12 +85,14 @@ export function analyzeResume(resumeText: string, jobText: string, customKeyword
   };
 }
 
-function calculateWeightedScore(matched: Keyword[], missing: Keyword[], allJobKeywords: Keyword[]): number {
+function calculateWeightedScore(matched: Keyword[], _missing: Keyword[], allJobKeywords: Keyword[]): number {
+  if (allJobKeywords.length === 0) return 0;
+
   let totalImportance = 0;
   let matchedImportance = 0;
 
   allJobKeywords.forEach(keyword => {
-    const importance = keyword.importance || 1;
+    const importance = Math.max(keyword.importance || 1, 0.1);
     totalImportance += importance;
 
     const isMatched = matched.some(m => m.text.toLowerCase() === keyword.text.toLowerCase());
@@ -89,7 +101,7 @@ function calculateWeightedScore(matched: Keyword[], missing: Keyword[], allJobKe
     }
   });
 
-  return totalImportance > 0 ? (matchedImportance / totalImportance) * 100 : 0;
+  return totalImportance > 0 ? Math.min((matchedImportance / totalImportance) * 100, 100) : 0;
 }
 
 function performDetailedAnalysis(
@@ -157,19 +169,28 @@ function performDetailedAnalysis(
 
 function calculateATSScore(resumeText: string, matched: Keyword[], allJobKeywords: Keyword[]): number {
   let score = 0;
+  const wordCount = resumeText.split(/\s+/).length;
 
-  const keywordDensity = matched.length / (resumeText.split(/\s+/).length / 100);
+  if (wordCount === 0) return 0;
+
+  const keywordDensity = (matched.length / wordCount) * 100;
   if (keywordDensity >= 2 && keywordDensity <= 5) score += 25;
-  else if (keywordDensity > 0) score += 15;
+  else if (keywordDensity >= 1 && keywordDensity < 2) score += 20;
+  else if (keywordDensity > 0.5) score += 15;
+  else if (keywordDensity > 0) score += 10;
 
-  const hasContactInfo = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(resumeText) &&
-                        /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resumeText);
-  if (hasContactInfo) score += 15;
+  const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/i.test(resumeText);
+  const hasPhone = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resumeText);
+  if (hasEmail && hasPhone) score += 15;
+  else if (hasEmail || hasPhone) score += 10;
 
-  const hasStructuredSections = /(experience|education|skills|projects)/gi.test(resumeText);
-  if (hasStructuredSections) score += 20;
+  const sectionMatches = resumeText.match(/(experience|education|skills|projects|summary)/gi);
+  const uniqueSections = sectionMatches ? new Set(sectionMatches.map(s => s.toLowerCase())).size : 0;
+  if (uniqueSections >= 4) score += 20;
+  else if (uniqueSections >= 3) score += 15;
+  else if (uniqueSections >= 2) score += 10;
 
-  const matchRate = matched.length / allJobKeywords.length;
+  const matchRate = allJobKeywords.length > 0 ? matched.length / allJobKeywords.length : 0;
   score += matchRate * 40;
 
   return Math.min(Math.round(score), 100);
@@ -178,11 +199,13 @@ function calculateATSScore(resumeText: string, matched: Keyword[], allJobKeyword
 function generateSuggestions(missingKeywords: Keyword[], score: number, analysis?: DetailedAnalysis): string[] {
   const suggestions: string[] = [];
 
-  if (score < 50) {
+  if (score < 40) {
     suggestions.push('Your resume needs significant improvements. Focus on aligning with key job requirements.');
-  } else if (score < 70) {
-    suggestions.push('Good foundation! Address the missing keywords to strengthen your application.');
-  } else if (score < 85) {
+  } else if (score < 60) {
+    suggestions.push('Your resume shows potential. Address the missing keywords to strengthen your application.');
+  } else if (score < 75) {
+    suggestions.push('Good foundation! Add missing keywords and emphasize relevant experience.');
+  } else if (score < 90) {
     suggestions.push('Strong match! A few tweaks will make your resume even more competitive.');
   } else {
     suggestions.push('Excellent alignment! Your resume matches this job very well.');
@@ -260,17 +283,32 @@ export function analyzeResumeFormat(resumeText: string): {
   hasQuantifiableResults: boolean;
   wordCount: number;
 } {
-  const hasContactInfo = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(resumeText) ||
-                        /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resumeText);
+  if (!resumeText || resumeText.trim().length === 0) {
+    return {
+      hasContactInfo: false,
+      hasSections: false,
+      hasActionVerbs: false,
+      hasQuantifiableResults: false,
+      wordCount: 0
+    };
+  }
+
+  const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/i.test(resumeText);
+  const hasPhone = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resumeText);
+  const hasContactInfo = hasEmail || hasPhone;
 
   const hasSections = /(experience|education|skills|summary|projects)/gi.test(resumeText);
 
-  const actionVerbs = ['developed', 'implemented', 'managed', 'led', 'created', 'designed', 'improved', 'increased', 'reduced'];
+  const actionVerbs = [
+    'developed', 'implemented', 'managed', 'led', 'created', 'designed',
+    'improved', 'increased', 'reduced', 'achieved', 'delivered', 'built',
+    'launched', 'optimized', 'streamlined', 'established', 'coordinated'
+  ];
   const hasActionVerbs = actionVerbs.some(verb => new RegExp(`\\b${verb}\\b`, 'i').test(resumeText));
 
-  const hasQuantifiableResults = /\d+%|\$\d+|\d+\+/.test(resumeText);
+  const hasQuantifiableResults = /\d+%|\$\d+|\d+\+|\d+x\s/i.test(resumeText);
 
-  const wordCount = resumeText.trim().split(/\s+/).length;
+  const wordCount = resumeText.trim().split(/\s+/).filter(word => word.length > 0).length;
 
   return {
     hasContactInfo,

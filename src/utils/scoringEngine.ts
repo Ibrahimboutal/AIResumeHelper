@@ -23,6 +23,14 @@ export function calculateComprehensiveScore(
   missingKeywords: Keyword[],
   allJobKeywords: Keyword[]
 ): ScoringResult {
+  if (!resumeText?.trim() || !jobText?.trim()) {
+    return {
+      overallScore: 0,
+      breakdown: { keywordMatch: 0, technicalSkills: 0, experience: 0, formatting: 0, atsCompatibility: 0 },
+      recommendations: ['Please provide both resume and job posting text.'],
+      rank: 'Poor'
+    };
+  }
   const breakdown: ScoreBreakdown = {
     keywordMatch: calculateKeywordMatchScore(matchedKeywords, allJobKeywords),
     technicalSkills: calculateTechnicalSkillsScore(matchedKeywords, allJobKeywords),
@@ -59,35 +67,39 @@ export function calculateComprehensiveScore(
 }
 
 function calculateKeywordMatchScore(matched: Keyword[], allJobKeywords: Keyword[]): number {
-  if (allJobKeywords.length === 0) return 100;
+  if (!allJobKeywords || allJobKeywords.length === 0) return 100;
+  if (!matched || matched.length === 0) return 0;
 
   let totalImportance = 0;
   let matchedImportance = 0;
 
   allJobKeywords.forEach(keyword => {
-    const importance = keyword.importance || 1;
+    const importance = Math.max(keyword.importance || 1, 0.1);
     totalImportance += importance;
 
-    const isMatched = matched.some(m => m.text.toLowerCase() === keyword.text.toLowerCase());
+    const isMatched = matched.some(m => m.text?.toLowerCase() === keyword.text?.toLowerCase());
     if (isMatched) {
       matchedImportance += importance;
     }
   });
 
-  return Math.round((matchedImportance / totalImportance) * 100);
+  return totalImportance > 0 ? Math.min(Math.round((matchedImportance / totalImportance) * 100), 100) : 0;
 }
 
 function calculateTechnicalSkillsScore(matched: Keyword[], allJobKeywords: Keyword[]): number {
-  const technicalMatched = matched.filter(k => k.category === 'technical');
-  const technicalTotal = allJobKeywords.filter(k => k.category === 'technical');
+  if (!matched || !allJobKeywords) return 0;
+
+  const technicalMatched = matched.filter(k => k?.category === 'technical');
+  const technicalTotal = allJobKeywords.filter(k => k?.category === 'technical');
 
   if (technicalTotal.length === 0) return 100;
+  if (technicalMatched.length === 0) return 0;
 
   const matchRate = (technicalMatched.length / technicalTotal.length) * 100;
 
-  const highImportanceTech = technicalTotal.filter(k => (k.importance || 0) > 2);
+  const highImportanceTech = technicalTotal.filter(k => (k?.importance || 0) > 2);
   const highImportanceMatched = technicalMatched.filter(k =>
-    highImportanceTech.some(h => h.text.toLowerCase() === k.text.toLowerCase())
+    highImportanceTech.some(h => h?.text?.toLowerCase() === k?.text?.toLowerCase())
   );
 
   const criticalMatchBonus = highImportanceTech.length > 0
@@ -98,6 +110,8 @@ function calculateTechnicalSkillsScore(matched: Keyword[], allJobKeywords: Keywo
 }
 
 function calculateExperienceScore(resumeText: string, jobText: string): number {
+  if (!resumeText?.trim() || !jobText?.trim()) return 0;
+
   let score = 40;
 
   const jobYearsMatch = jobText.match(/(\d+)\+?\s*years?/gi);
@@ -149,6 +163,8 @@ function calculateExperienceScore(resumeText: string, jobText: string): number {
 }
 
 function calculateFormattingScore(resumeText: string): number {
+  if (!resumeText?.trim()) return 0;
+
   let score = 0;
 
   const standardSections = /(experience|education|skills|summary|projects|certifications)/gi;
@@ -188,6 +204,9 @@ function calculateFormattingScore(resumeText: string): number {
 }
 
 function calculateATSCompatibility(resumeText: string, matchedKeywords: Keyword[]): number {
+  if (!resumeText?.trim()) return 0;
+  if (!matchedKeywords) matchedKeywords = [];
+
   let score = 0;
 
   const standardSectionHeaders = /\b(EXPERIENCE|EDUCATION|SKILLS|SUMMARY|WORK EXPERIENCE|PROFESSIONAL EXPERIENCE)\b/i;

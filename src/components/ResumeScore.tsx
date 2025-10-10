@@ -40,19 +40,23 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" aria-hidden="true" />
             <span className="text-xs font-semibold text-emerald-700 uppercase">Matched</span>
           </div>
-          <p className="text-2xl font-bold text-emerald-700">{matchedKeywords.length}</p>
+          <p className="text-2xl font-bold text-emerald-700" aria-label={`${matchedKeywords.length} matched keywords`}>
+            {matchedKeywords.length}
+          </p>
           <p className="text-xs text-emerald-600 mt-1">Keywords found</p>
         </div>
 
         <div className="bg-rose-50 border border-rose-200 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
-            <XCircle className="w-4 h-4 text-rose-600" />
+            <XCircle className="w-4 h-4 text-rose-600" aria-hidden="true" />
             <span className="text-xs font-semibold text-rose-700 uppercase">Missing</span>
           </div>
-          <p className="text-2xl font-bold text-rose-700">{missingKeywords.length}</p>
+          <p className="text-2xl font-bold text-rose-700" aria-label={`${missingKeywords.length} missing keywords`}>
+            {missingKeywords.length}
+          </p>
           <p className="text-xs text-rose-600 mt-1">Keywords to add</p>
         </div>
       </div>
@@ -86,11 +90,17 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
                 <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-600 transition-all duration-500"
-                    style={{ width: `${detailedAnalysis.technicalMatch}%` }}
+                    style={{ width: `${Math.min(detailedAnalysis.technicalMatch, 100)}%` }}
+                    role="progressbar"
+                    aria-valuenow={Math.min(Math.round(detailedAnalysis.technicalMatch), 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Technical skills match percentage"
+                    
                   />
                 </div>
                 <span className="text-xs font-semibold text-slate-700 w-10 text-right">
-                  {Math.round(detailedAnalysis.technicalMatch)}%
+                  {Math.min(Math.round(detailedAnalysis.technicalMatch), 100)}%
                 </span>
               </div>
             </div>
@@ -100,11 +110,16 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
                 <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-600 transition-all duration-500"
-                    style={{ width: `${detailedAnalysis.softSkillsMatch}%` }}
+                    style={{ width: `${Math.min(detailedAnalysis.softSkillsMatch, 100)}%` }}
+                    role="progressbar"
+                    aria-valuenow={Math.min(Math.round(detailedAnalysis.softSkillsMatch), 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Soft skills match percentage"
                   />
                 </div>
                 <span className="text-xs font-semibold text-slate-700 w-10 text-right">
-                  {Math.round(detailedAnalysis.softSkillsMatch)}%
+                  {Math.min(Math.round(detailedAnalysis.softSkillsMatch), 100)}%
                 </span>
               </div>
             </div>
@@ -114,11 +129,16 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
                 <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all duration-500 ${detailedAnalysis.atsScore >= 70 ? 'bg-emerald-600' : detailedAnalysis.atsScore >= 50 ? 'bg-amber-600' : 'bg-rose-600'}`}
-                    style={{ width: `${detailedAnalysis.atsScore}%` }}
+                    style={{ width: `${Math.min(detailedAnalysis.atsScore, 100)}%` }}
+                    role="progressbar"
+                    aria-valuenow={Math.min(detailedAnalysis.atsScore, 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="ATS compatibility score"
                   />
                 </div>
                 <span className="text-xs font-semibold text-slate-700 w-10 text-right">
-                  {detailedAnalysis.atsScore}%
+                  {Math.min(detailedAnalysis.atsScore, 100)}%
                 </span>
               </div>
             </div>
@@ -134,13 +154,13 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
           <div className="flex flex-wrap gap-2">
             {missingKeywords.slice(0, 8).map((keyword, index) => (
               <span
-                key={index}
+                key={`missing-${index}-${keyword.text}`}
                 className="px-2.5 py-1 bg-rose-100 text-rose-700 border border-rose-200 rounded-full text-xs font-medium inline-flex items-center gap-1"
                 title={`Importance: ${keyword.importance?.toFixed(1) || '0'} - ${keyword.category}`}
               >
                 {keyword.text}
                 {keyword.importance && keyword.importance > 2 && (
-                  <span className="text-rose-500 text-xs font-bold">!</span>
+                  <span className="text-rose-500 text-xs font-bold" aria-label="High importance">!</span>
                 )}
               </span>
             ))}
@@ -156,13 +176,15 @@ export default function ResumeScore({ analysis }: ResumeScoreProps) {
           <div className="flex flex-wrap gap-2">
             {matchedKeywords.slice(0, 6).map((keyword, index) => (
               <span
-                key={index}
+                key={`matched-${index}-${keyword.text}`}
                 className="px-2.5 py-1 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium inline-flex items-center gap-1"
                 title={`Count: ${keyword.count} - ${keyword.category}`}
               >
                 {keyword.text}
                 {keyword.count > 1 && (
-                  <span className="text-emerald-600 text-xs font-semibold bg-white/50 px-1 rounded">×{keyword.count}</span>
+                  <span className="text-emerald-600 text-xs font-semibold bg-white/50 px-1 rounded" aria-label={`Appears ${keyword.count} times`}>
+                    ×{keyword.count}
+                  </span>
                 )}
               </span>
             ))}
