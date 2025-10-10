@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { canCreateJobApplication } from './subscriptionService';
 
 export interface JobApplication {
   id: string;
@@ -37,6 +38,11 @@ export async function saveJobApplication(
 
   if (userError || !user) {
     throw new Error('User not authenticated');
+  }
+
+  const usageCheck = await canCreateJobApplication();
+  if (!usageCheck.allowed) {
+    throw new Error(usageCheck.reason || 'Cannot create job application');
   }
 
   const { data, error } = await supabase

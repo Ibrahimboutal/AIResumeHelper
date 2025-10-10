@@ -3,6 +3,8 @@ import { BarChart3, TrendingUp, Briefcase, Target, Calendar, Award } from 'lucid
 import { getApplicationStats } from '../services/applicationService';
 import { getResumes } from '../services/resumeService';
 import { useAuth } from '../hooks/useAuth';
+import { UsageBanner } from './UsageBanner';
+import { SubscriptionModal } from './SubscriptionModal';
 
 export default function Dashboard() {
   const { isAuthenticated } = useAuth();
@@ -15,6 +17,7 @@ export default function Dashboard() {
   });
   const [resumeCount, setResumeCount] = useState(0);
   const [_loading, setLoading] = useState(true);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -108,6 +111,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4">
+      <UsageBanner onUpgradeClick={() => setShowSubscriptionModal(true)} />
+
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white/20 p-3 rounded-lg">
@@ -280,6 +285,12 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onUpgrade={() => loadStats()}
+      />
     </div>
   );
 }
