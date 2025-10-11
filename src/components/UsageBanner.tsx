@@ -14,6 +14,7 @@ export function UsageBanner({ onUpgradeClick }: UsageBannerProps) {
     tierName: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsage();
@@ -23,14 +24,34 @@ export function UsageBanner({ onUpgradeClick }: UsageBannerProps) {
     try {
       const stats = await getUsageStats();
       setUsage(stats);
+      setError(null);
     } catch (err) {
       console.error('Error loading usage stats:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load usage stats');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !usage || usage.limit === null) {
+  if (loading) {
+    return null;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-lg border bg-yellow-50 border-yellow-200">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-yellow-600" />
+          <div className="flex-1">
+            <h3 className="font-semibold mb-1 text-yellow-900">Unable to Load Usage Stats</h3>
+            <p className="text-sm text-yellow-700">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!usage || usage.limit === null) {
     return null;
   }
 

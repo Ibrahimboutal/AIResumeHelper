@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Briefcase, Target, Calendar, Award } from 'lucide-react';
+import { BarChart3, TrendingUp, Briefcase, Target, Calendar, Award, Zap, Crown } from 'lucide-react';
 import { getApplicationStats } from '../services/applicationService';
 import { getResumes } from '../services/resumeService';
 import { useAuth } from '../hooks/useAuth';
 import { UsageBanner } from './UsageBanner';
 import { SubscriptionModal } from './SubscriptionModal';
+import { getUsageStats } from '../services/subscriptionService';
 
 export default function Dashboard() {
   const { isAuthenticated } = useAuth();
@@ -18,6 +19,12 @@ export default function Dashboard() {
   const [resumeCount, setResumeCount] = useState(0);
   const [_loading, setLoading] = useState(true);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [usage, setUsage] = useState<{
+    used: number;
+    limit: number | null;
+    percentage: number;
+    tierName: string;
+  } | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -33,9 +40,10 @@ export default function Dashboard() {
 
     setLoading(true);
     try {
-      const [applicationStats, resumes] = await Promise.all([
+      const [applicationStats, resumes, usageStats] = await Promise.all([
         getApplicationStats(),
         getResumes(),
+        getUsageStats(),
       ]);
 
       if (applicationStats) {
@@ -43,6 +51,9 @@ export default function Dashboard() {
       }
       if (Array.isArray(resumes)) {
         setResumeCount(resumes.length);
+      }
+      if (usageStats) {
+        setUsage(usageStats);
       }
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -111,6 +122,58 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4">
+      {usage && (
+        <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl shadow-lg p-4 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <Crown className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Subscription Plan</h3>
+                <p className="text-slate-300 text-xs">{usage.tierName} Tier</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSubscriptionModal(true)}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Zap className="w-4 h-4" />
+              {usage.limit === null ? 'Manage Plan' : 'Upgrade'}
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-slate-300 text-xs mb-1">Applications Used</p>
+              <p className="text-2xl font-bold">
+                {usage.used} {usage.limit !== null && `/ ${usage.limit}`}
+              </p>
+            </div>
+            {usage.limit !== null && (
+              <div>
+                <p className="text-slate-300 text-xs mb-1">Usage</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-white/20 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${
+                        usage.percentage >= 100
+                          ? 'bg-red-500'
+                          : usage.percentage >= 80
+                          ? 'bg-yellow-500'
+                          : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.min(usage.percentage, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold">{Math.round(usage.percentage)}%</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <UsageBanner onUpgradeClick={() => setShowSubscriptionModal(true)} />
 
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white">

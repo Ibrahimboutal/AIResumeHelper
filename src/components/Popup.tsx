@@ -276,9 +276,16 @@ export default function Popup() {
     try {
       await saveJobApplication(jobTitle, company, undefined, jobText);
       setOutput(`Application tracked successfully!\n\nJob: ${jobTitle}\nCompany: ${company}\nDate: ${new Date().toLocaleDateString()}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error tracking application:', error);
-      setOutput('Error: Could not save application. Please try again.');
+      const errorMessage = error?.message || 'Could not save application. Please try again.';
+      setOutput(`Error: ${errorMessage}`);
+
+      if (errorMessage.includes('limit') || errorMessage.includes('Upgrade')) {
+        setTimeout(() => {
+          setActiveTab('data');
+        }, 2000);
+      }
     }
   };
 

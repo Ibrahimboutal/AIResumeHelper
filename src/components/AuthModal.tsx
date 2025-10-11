@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { createDefaultSubscription } from '../services/subscriptionService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -36,6 +37,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         });
 
         if (signUpError) throw signUpError;
+
+        try {
+          await createDefaultSubscription();
+        } catch (subError) {
+          console.log('Subscription creation handled by trigger or already exists');
+        }
 
         setError('');
         onSuccess();
