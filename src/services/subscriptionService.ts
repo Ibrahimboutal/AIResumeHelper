@@ -202,3 +202,82 @@ export async function getUsageStats(): Promise<{
     tierName: subscription.tier?.name || 'Unknown',
   };
 }
+
+export type LocalAIFeatureType =
+  | 'prompt'
+  | 'proofread'
+  | 'summarize'
+  | 'translate'
+  | 'write'
+  | 'rewrite'
+  | 'image_analysis'
+  | 'audio_analysis';
+
+export async function canUseLocalAIFeature(featureType: LocalAIFeatureType): Promise<{
+  allowed: boolean;
+  reason?: string;
+  current: number;
+  limit: number | null;
+}> {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      allowed: false,
+      reason: 'User not authenticated',
+      current: 0,
+      limit: 0,
+    };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('can_use_local_ai_feature', {
+      p_user_id: user.id,
+      p_feature_type: featureType,
+    });
+
+    if (error) {
+      console.error('Error checking local AI feature permission:', error);
+      return {
+        allowed: false,
+        reason: 'Error checking subscription status',
+        current: 0,
+        limit: 0,
+      };
+    }
+
+    return {
+      allowed: data.allowed,
+      reason: data.reason,
+      current: data.current,
+      limit: data.limit,
+    };
+  } catch (error) {
+    console.error('Error checking local AI feature permission:', error);
+    return {
+      allowed: false,
+      reason: 'Error checking subscription status',
+      current: 0,
+      limit: 0,
+    };
+  }
+}
+
+export async function getLocalAIUsageStats(): Promise<Record<LocalAIFeatureType, { used: number; limit: number | null }>> {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const { data, error } = await supabase.rpc('get_local_ai_usage_stats', {
+    p_user_id: user.id,
+  });
+
+  if (error) {
+    console.error('Error fetching local AI usage stats:', error);
+    throw new Error('Failed to fetch usage stats');
+  }
+
+  return data || {};
+}
