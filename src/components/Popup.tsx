@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Save, Briefcase, MousePointerClick, LayoutGrid, Library, Settings, LogOut, User, PartyPopper } from 'lucide-react';
+import { FileText, Download, Sparkles, File as FileEdit, Mail, Loader2, Copy, Save, Briefcase, MousePointerClick, LayoutGrid, Library, Settings, LogOut, User, PartyPopper, Brain } from 'lucide-react';
 import { summarizeJob, tailorResume, generateCoverLetter } from '../utils/aiMocks';
 import { extractKeywordsSync, type Keyword } from '../utils/keywordExtractor';
 import { analyzeResume, type ResumeAnalysis } from '../utils/resumeAnalyzer';
@@ -11,6 +11,8 @@ import ApplicationTracker from './ApplicationTracker';
 import ResumeVersions from './ResumeVersions';
 import AuthModal from './AuthModal';
 import Dashboard from './Dashboard';
+import ResumeAIActions from './ResumeAIActions';
+import JobAIActions from './JobAIActions';
 import { useAuth } from '../hooks/useAuth';
 import { saveResume } from '../services/resumeService';
 import { saveJobApplication } from '../services/applicationService';
@@ -521,7 +523,7 @@ export default function Popup() {
 
             {/* Step 3: AI Actions & Output */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
-              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">3. AI Actions</h2>
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">3. AI Actions (Cloud)</h2>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={handleTailorResume} disabled={loading || !jobText || !resumeText} className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
                   {loading && activeAction === 'tailor' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileEdit className="w-4 h-4" />}
@@ -535,7 +537,7 @@ export default function Popup() {
                   {loading && activeAction === 'summarize' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                   Summarize Job
                 </button>
-                 <button onClick={trackApplication} disabled={!jobText} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
+                 <button onClick={trackApplication} disabled={!jobText} className="w-full flex items-center justify-center gap-2 bg-slate-600 hover:bg-slate-700 disabled:bg-slate-300 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed">
                   <Briefcase className="w-4 h-4" />
                   Track Application
                 </button>
@@ -571,6 +573,29 @@ export default function Popup() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Step 4: Local AI Actions */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-sm p-4 space-y-3">
+              <h2 className="text-sm font-semibold text-white uppercase tracking-wide flex items-center gap-2">
+                <Brain className="w-4 h-4" />
+                4. Local AI Actions
+              </h2>
+              <p className="text-xs text-blue-100">
+                Privacy-focused AI running on your device
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded-lg p-3">
+                  <ResumeAIActions
+                    resumeText={resumeText}
+                    onResumeUpdate={setResumeText}
+                  />
+                </div>
+                <div className="bg-white rounded-lg p-3">
+                  <JobAIActions jobText={jobText} />
+                </div>
+              </div>
             </div>
           </>
           )

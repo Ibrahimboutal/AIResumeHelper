@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Briefcase, Target, Calendar, Award, Zap, Crown } from 'lucide-react';
+import { BarChart3, TrendingUp, Briefcase, Target, Calendar, Award, Zap, Crown, Sparkles, Brain } from 'lucide-react';
 import { getApplicationStats } from '../services/applicationService';
 import { getResumes } from '../services/resumeService';
 import { useAuth } from '../hooks/useAuth';
 import { UsageBanner } from './UsageBanner';
 import { SubscriptionModal } from './SubscriptionModal';
-import { getUsageStats } from '../services/subscriptionService';
+import { getUsageStats, getLocalAIUsageStats, type LocalAIFeatureType } from '../services/subscriptionService';
+import MultimodalAI from './MultimodalAI';
 
 export default function Dashboard() {
   const { isAuthenticated } = useAuth();
@@ -25,6 +26,8 @@ export default function Dashboard() {
     percentage: number;
     tierName: string;
   } | null>(null);
+  const [localAIUsage, setLocalAIUsage] = useState<Record<LocalAIFeatureType, { used: number; limit: number | null }> | null>(null);
+  const [showMultimodal, setShowMultimodal] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -40,10 +43,11 @@ export default function Dashboard() {
 
     setLoading(true);
     try {
-      const [applicationStats, resumes, usageStats] = await Promise.all([
+      const [applicationStats, resumes, usageStats, aiUsageStats] = await Promise.all([
         getApplicationStats(),
         getResumes(),
         getUsageStats(),
+        getLocalAIUsageStats().catch(() => null),
       ]);
 
       if (applicationStats) {
@@ -54,6 +58,9 @@ export default function Dashboard() {
       }
       if (usageStats) {
         setUsage(usageStats);
+      }
+      if (aiUsageStats) {
+        setLocalAIUsage(aiUsageStats);
       }
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -274,6 +281,7 @@ export default function Dashboard() {
                   className="h-full bg-blue-600 transition-all duration-500"
                   style={{ width: `${appliedProgress}%` }}
                   role="progressbar"
+                  
                   // FIX: Using the safe, pre-calculated number
                   aria-valuenow={appliedProgress}
                   aria-valuemin={0}
@@ -348,6 +356,64 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+
+      {localAIUsage && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-2">
+              <Brain className="w-4 h-4 text-blue-600" />
+              Local AI Usage
+            </h3>
+            <Sparkles className="w-4 h-4 text-blue-600" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {Object.entries(localAIUsage).map(([feature, stats]) => (
+              <div key={feature} className="bg-slate-50 rounded-lg p-2 border border-slate-200">
+                <p className="text-slate-600 font-medium capitalize mb-1">
+                  {feature.replace('_', ' ')}
+                </p>
+                <p className="text-slate-900 font-semibold">
+                  {stats.used} / {stats.limit === null ? '∞' : stats.limit}
+                </p>
+                {stats.limit !== null && (
+                  <div className="mt-1 h-1 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${
+                        stats.used >= stats.limit
+                          ? 'bg-rose-500'
+                          : stats.used / stats.limit >= 0.8
+                          ? 'bg-amber-500'
+                          : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${Math.min((stats.used / stats.limit) * 100, 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-4">
+        <button
+          onClick={() => setShowMultimodal(!showMultimodal)}
+          className="w-full flex items-center justify-between text-white"
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5" />
+            <span className="font-semibold">Multimodal AI</span>
+          </div>
+          <span className="text-2xl">{showMultimodal ? '−' : '+'}</span>
+        </button>
+
+        {showMultimodal && (
+          <div className="mt-4 pt-4 border-t border-blue-500">
+            <MultimodalAI />
+          </div>
+        )}
+      </div>
 
       <SubscriptionModal
         isOpen={showSubscriptionModal}
