@@ -16,6 +16,7 @@ import JobAIActions from './JobAIActions';
 import { useAuth } from '../hooks/useAuth';
 import { saveResume } from '../services/resumeService';
 import { saveJobApplication } from '../services/applicationService';
+import { isLocalAIAvailable, destroySession } from '../services/localAIService';
 
 type Tab = 'analysis' | 'data' | 'settings';
 
@@ -32,6 +33,26 @@ export default function Popup() {
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [customKeywords, setCustomKeywords] = useState<string[]>([]);
   const [keywordFilter, setKeywordFilter] = useState<'all' | 'technical' | 'soft' | 'tool' | 'certification'>('all');
+  const [localAIReady, setLocalAIReady] = useState<boolean | null>(null);
+  const [localAILoading, setLocalAILoading] = useState<boolean>(false);
+
+  // Check Local AI availability on mount
+  useEffect(() => {
+    (async () => {
+      setLocalAILoading(true);
+      try {
+        const available = await isLocalAIAvailable();
+        setLocalAIReady(available);
+      } catch (err) {
+        console.error('Local AI availability check failed:', err);
+        setLocalAIReady(false);
+      } finally {
+        setLocalAILoading(false);
+      }
+    })();
+    // Clean up session on unmount
+    return () => destroySession();
+  }, []);
 
   useEffect(() => {
     // Listen for storage changes to keep custom keywords in sync
@@ -576,6 +597,7 @@ export default function Popup() {
             </div>
 
             {/* Step 4: Local AI Actions */}
+            {/* Step 4: Local AI Actions */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-sm p-4 space-y-3">
               <h2 className="text-sm font-semibold text-white uppercase tracking-wide flex items-center gap-2">
                 <Brain className="w-4 h-4" />
@@ -585,17 +607,29 @@ export default function Popup() {
                 Privacy-focused AI running on your device
               </p>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-lg p-3">
-                  <ResumeAIActions
-                    resumeText={resumeText}
-                    onResumeUpdate={setResumeText}
-                  />
+              {localAILoading && (
+                <p className="text-xs text-blue-100">Checking Local AI availability...</p>
+              )}
+
+              {!localAILoading && localAIReady === false && (
+                <p className="text-xs text-red-200">
+                  ⚠️ Local AI not available. Ensure Chrome 138+ with Gemini Nano enabled.
+                </p>
+              )}
+
+              {!localAILoading && localAIReady && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-lg p-3">
+                    <ResumeAIActions
+                      resumeText={resumeText}
+                      onResumeUpdate={setResumeText}
+                    />
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <JobAIActions jobText={jobText} />
+                  </div>
                 </div>
-                <div className="bg-white rounded-lg p-3">
-                  <JobAIActions jobText={jobText} />
-                </div>
-              </div>
+              )}
             </div>
           </>
           )
