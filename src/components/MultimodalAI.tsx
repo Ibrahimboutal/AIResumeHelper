@@ -142,7 +142,10 @@ export default function MultimodalAI() {
               </div>
               <button
                 onClick={clearImage}
+<<<<<<< HEAD
                 title="Remove image"
+=======
+>>>>>>> 3c695bbe2b477a0710dee30af09867b99bb3e11f
                 className="text-slate-500 hover:text-slate-700"
               >
                 <X className="w-4 h-4" />
